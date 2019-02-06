@@ -11,6 +11,7 @@ def softmax(x):  # https://stackoverflow.com/questions/34968722/how-to-implement
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum(axis=0)
 
+
 class PensionEnv(core.Env):
     """
     The environment.

@@ -1,5 +1,5 @@
 import numpy as np
-
+from math import sqrt
 
 class Discretizer:
     # adapted from https://github.com/udacity/deep-reinforcement-learning/blob/
@@ -29,12 +29,15 @@ class Discretizer:
             for dim in range(len(same_sign)):
                 low_mag = 0 if low[dim] == 0 else int(np.log10(abs(low[dim])))
                 high_mag = 0 if high[dim] == 0 else int(np.log10(abs(high[dim])))
+                print("low_mag", low_mag)
+                print("high_mag", high_mag)
                 if same_sign[dim]:
-                    print((2-bins[dim]))
-                    print(10**min((2-low_mag),0))
-                    low[dim] = low[dim] if low[dim] != 0 else 10**min((2-low_mag), 0)
-                    high[dim] = high[dim] if high[dim] != 0 else 10**min((2-high_mag), 0)
-                    print(low[dim], high[dim], 10**min((2-low_mag), 0))
+                    mag = max(low_mag, high_mag)
+                    print("mag", mag, "bins", bins[dim], "sqrt(bins)", sqrt(bins[dim])/2, "result",(mag-sqrt(bins[dim])/2))
+                    low[dim] = low[dim] if low[dim] != 0 else 10**float(min((mag-sqrt(bins[dim])/2), 0))
+                    high[dim] = high[dim] if high[dim] != 0 else 10**float(min((mag-sqrt(bins[dim])/2), 0))
+                    print(low[dim], high[dim], print(10**float(min(mag-sqrt(bins[dim])/2, 0)))
+)
                     grid[dim] = space_func(low[dim], high[dim], bins[dim] + 1)
                 else:
                     print("dimension {} has different signs".format(dim))
@@ -42,19 +45,15 @@ class Discretizer:
                     h2 = high[dim]
                     lh_range = h2 - l1
                     bin1_ratio = abs(l1) / lh_range
-                    b1 = int(bins[dim] * bin1_ratio)
-                    b2 = bins[dim] - b1
-                    h1 = -1 * 10**min((2-low_mag), 0)  # 0 would lead to nan
-                    l2 = 1 * 10**min((2-high_mag), 0)  # 0 would lead to nan
-                    # print("b1", b1)
-                    # print("low_mag", low_mag)
-                    # print(b1-low_mag)
+                    b1 = float(int(bins[dim] * bin1_ratio))
+                    b2 = float(bins[dim] - b1)
+                    print("b1", b1, "b2", b2, "mag1", 10**min(low_mag-sqrt(b1)/2, 0), "mag2", 10**min(high_mag-sqrt(b2)/2, 0))
+                    h1 = -1 * 10**min((low_mag-sqrt(b1)/2), 0)  # 0 would lead to nan
+                    l2 = 1 * 10**min((high_mag-sqrt(b2)/2), 0)  # 0 would lead to nan
                     grid_below_0 = space_func(l1, h1, b1 + 1)[0:-1]
                     # print("below", grid_below_0)
                     grid_above_0 = space_func(l2, h2, b2 + 1)
-                    # print("b2", b2)
                     # print("above", grid_above_0)
-                    # print(np.hstack((grid_below_0, grid_above_0)))
                     grid[dim] = np.hstack((grid_below_0, grid_above_0))
         else:
             grid = np.array([space_func(low[dim], high[dim], bins[dim] + 1)
