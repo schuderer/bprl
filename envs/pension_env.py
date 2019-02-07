@@ -325,7 +325,8 @@ class PensionEnv(core.Env):
             for p in self.products:
                 if (self.happiness < 0):  # Note: can only happen if >=67
                     p.company.damageReputation(self.happiness)
-                leaving |= self.age < 67 and p.company.reputation < -1500
+                angryEnough = random.random() > norm.cdf(p.company.reputation, loc=-1500, scale=500)
+                leaving |= self.age < 67 and angryEnough
                 reputation = p.company.reputation
                 # if leaving:
                 #     print("HUMAN IS LEAVING, happiness", self.happiness)
