@@ -7,14 +7,14 @@ import gym
 from envs.pension_env import PensionEnv
 from discretize import Discretizer
 
-# env = PensionEnv()
+env = PensionEnv()
 # env = gym.make('Pendulum-v0')
-env = gym.make('CartPole-v0')
+# env = gym.make('CartPole-v0')
 # env = gym.make('FrozenLake-v0')
 # env = gym.make('MountainCar-v0')
 
-num_bins = 8
-log_bins = False
+num_bins = 12
+log_bins = True
 print({"num_bins": num_bins, "log_bins": log_bins})
 
 statesDisc = None
@@ -80,15 +80,21 @@ def getActions(discreteObs, qTable):
             for aIdx in range(actionsDisc.n)]
 
 
-def maxQ2(discreteObs, qTable):
+def maxQ(discreteObs, qTable):
     if discreteObs.shape == ():
         discreteObs = np.reshape(discreteObs, (1,))
     actions = getActions(discreteObs, qTable)
-    bestActionIdx = np.argmax(actions)
+    # bestActionIdx = np.argmax(actions)  # tie breaking: first item
+    # tie breaking: random item:
+    bestActionIdx = np.random.choice(np.flatnonzero(actions == np.max(actions)))
+    # testMaxQ = maxQ_old(discreteObs, qTable)
+    # if testMaxQ[0] != bestActionIdx or testMaxQ[1] != actions[bestActionIdx]:
+    #     print("WARNING: {} != {} or {} != {}".format(testMaxQ[0], bestActionIdx, testMaxQ[1], actions[bestActionIdx]))
+    #     return 1/0
     return bestActionIdx, actions[bestActionIdx]
 
 
-def maxQ(discreteObs, qTable):
+def maxQ_old(discreteObs, qTable):
     if discreteObs.shape == ():
         discreteObs = np.reshape(discreteObs, (1,))
     keyStart = stateKeyFor(discreteObs)
@@ -98,7 +104,7 @@ def maxQ(discreteObs, qTable):
         key = keyStart + "-" + str(aIdx)
         if key in qTable:
             val = qTable[key]
-            if (val > highestVal):
+            if val > highestVal:
                 highestVal = val
                 bestActionIdx = aIdx
             # print("maxQ found something", key, aIdx, val)
@@ -214,7 +220,7 @@ def q_learn(env,
 # Run Q-Learning
 
 # PensionEnv
-print("Each episode takes 750 years (with one time step per year per human).")
+#print("Each episode takes 750 years (with one time step per year per human).")
 
 print("\nLEARNING:\n")
 
@@ -222,11 +228,11 @@ print("\nLEARNING:\n")
 # env.logger = sys.stderr
 
 qTable = q_learn(env,
-                 alpha_min=0.1,      # temperature/learning rate, was 0.01
+                 alpha_min=0.01,     # temperature/learning rate, was 0.01
                  alpha_decay=1,      # reduction factor per episode, was 0.003
                  gamma=0.99,         # discount factor, was 0.99
                  epsilon_min=0.03,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
-                 epsilon_decay=0.0005,    # reduction per episode, was 0.003
+                 epsilon_decay=0.001,    # reduction per episode, was 0.003
                  episodes=10000,
                  max_steps=20000,    # abort episode after this number of steps
                  q_table={},
