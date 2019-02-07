@@ -1,0 +1,68 @@
+{'num_bins': 12, 'log_bins': True}
+State space Box(3,)
+- low: [       0. -1000000.    -5000.]
+- high: [  1.00000000e+02   1.00000000e+06   0.00000000e+00]
+creating logarithmic grid
+dimension 1 crosses zero
+Grid: [<low>, <high>] / <bins> => <splits>
+    [1.0, 100.0] / 12 => [   1.            1.46779927    2.15443469    3.16227766    4.64158883
+    6.81292069   10.           14.67799268   21.5443469    31.6227766
+   46.41588834   68.12920691  100.        ]
+    [-1000000.0, 1000000.0] / 12 => [ -1.00000000e+06  -1.00000000e+05  -1.00000000e+04  -1.00000000e+03
+  -1.00000000e+02  -1.00000000e+01   1.00000000e+00   1.00000000e+01
+   1.00000000e+02   1.00000000e+03   1.00000000e+04   1.00000000e+05
+   1.00000000e+06]
+    [-5000.0, -1.0] / 12 => [ -5.00000086e+03  -2.45879642e+03  -1.20913576e+03  -5.94603635e+02
+  -2.92401808e+02  -1.43791279e+02  -7.07106842e+01  -3.47726295e+01
+  -1.70997605e+01  -8.40896452e+00  -4.13518566e+00  -2.03351559e+00
+  -1.00000000e+00]
+state grid [[  1.00000000e+00   1.46779927e+00   2.15443469e+00   3.16227766e+00
+    4.64158883e+00   6.81292069e+00   1.00000000e+01   1.46779927e+01
+    2.15443469e+01   3.16227766e+01   4.64158883e+01   6.81292069e+01
+    1.00000000e+02]
+ [ -1.00000000e+06  -1.00000000e+05  -1.00000000e+04  -1.00000000e+03
+   -1.00000000e+02  -1.00000000e+01   1.00000000e+00   1.00000000e+01
+    1.00000000e+02   1.00000000e+03   1.00000000e+04   1.00000000e+05
+    1.00000000e+06]
+ [ -5.00000086e+03  -2.45879642e+03  -1.20913576e+03  -5.94603635e+02
+   -2.92401808e+02  -1.43791279e+02  -7.07106842e+01  -3.47726295e+01
+   -1.70997605e+01  -8.40896452e+00  -4.13518566e+00  -2.03351559e+00
+   -1.00000000e+00]]
+Action space: Discrete(2)
+Each episode takes 750 years (with one time step per year per human).
+
+LEARNING:
+
+{'average_rewards': False, 'q_table': {}, 'max_steps': 20000, 'episodes': 5000, 'epsilon_decay': 1, 'epsilon_min': 0.03, 'gamma': 0.99, 'alpha_decay': 1, 'alpha_min': 0.01, 'env': <envs.pension_env.PensionEnv object at 0x10f64f080>}
+Episode 0 finished after 3756 timesteps with cumulative reward 3756.0 (last 100 mean = 37.56)
+year 751, q table size 87, epsilon 0.03, alpha 0.01, #humans 15, reputation -785.0
+Episode 1 finished after 3936 timesteps with cumulative reward 3936.0 (last 100 mean = 76.92)
+year 751, q table size 106, epsilon 0.03, alpha 0.01, #humans 10, reputation -872.5
+Episode 2 finished after 3957 timesteps with cumulative reward 3957.0 (last 100 mean = 116.49)
+year 751, q table size 129, epsilon 0.03, alpha 0.01, #humans 0, reputation -2623.75
+Episode 3 finished after 3907 timesteps with cumulative reward 3907.0 (last 100 mean = 155.56)
+year 751, q table size 132, epsilon 0.03, alpha 0.01, #humans 0, reputation -5452.5
+Episode 4 finished after 4110 timesteps with cumulative reward 4110.0 (last 100 mean = 196.66)
+year 751, q table size 132, epsilon 0.03, alpha 0.01, #humans 0, reputation -2642.5
+Episode 5 finished after 3381 timesteps with cumulative reward 3381.0 (last 100 mean = 230.47)
+year 751, q table size 135, epsilon 0.03, alpha 0.01, #humans 0, reputation -1681.875
+Episode 6 finished after 1995 timesteps with cumulative reward 1994.0 (last 100 mean = 250.41)
+year 541, q table size 141, epsilon 0.03, alpha 0.01, #humans 0, reputation -1357.5
+Episode 7 finished after 4608 timesteps with cumulative reward 4608.0 (last 100 mean = 296.49)
+year 751, q table size 166, epsilon 0.03, alpha 0.01, #humans 0, reputation -5875.0
+Episode 8 finished after 3536 timesteps with cumulative reward 3536.0 (last 100 mean = 331.85)
+year 751, q table size 168, epsilon 0.03, alpha 0.01, #humans 10, reputation -575.0
+Episode 9 finished after 2799 timesteps with cumulative reward 2799.0 (last 100 mean = 359.84)
+year 751, q table size 169, epsilon 0.03, alpha 0.01, #humans 3, reputation -840.0
+Episode 10 finished after 3332 timesteps with cumulative reward 3332.0 (last 100 mean = 393.16)
+year 751, q table size 170, epsilon 0.03, alpha 0.01, #humans 0, reputation -1595.0
+Episode 11 finished after 3541 timesteps with cumulative reward 3541.0 (last 100 mean = 428.57)
+year 751, q table size 171, epsilon 0.03, alpha 0.01, #humans 0, reputation -1550.0
+Episode 12 finished after 2844 timesteps with cumulative reward 2844.0 (last 100 mean = 457.01)
+year 751, q table size 171, epsilon 0.03, alpha 0.01, #humans 0, reputation -2540.0
+Episode 13 finished after 4481 timesteps with cumulative reward 4481.0 (last 100 mean = 501.82)
+year 751, q table size 172, epsilon 0.03, alpha 0.01, #humans 0, reputation -2275.0
+Episode 14 finished after 4125 timesteps with cumulative reward 4125.0 (last 100 mean = 543.07)
+year 751, q table size 173, epsilon 0.03, alpha 0.01, #humans 0, reputation -3120.0
+Episode 15 finished after 4286 timesteps with cumulative reward 4286.0 (last 100 mean = 585.93)
+year 751, q table size 177, epsilon 0.03, alpha 0.01, #humans 0, reputation -4412.5

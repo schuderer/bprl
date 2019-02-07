@@ -32,12 +32,12 @@ class PensionEnv(core.Env):
         self.lastYear = -1
 
         self.viewer = None
-        self.logger = None # sys.stderr
+        self.logger = None  # sys.stderr
         # observation: [Human's age, Company's funds, reputation, # number of clients]
-        high = np.array([100, 1000000, 5000])
+        high = np.array([100, 1000000, 0])
         low = -high
         low[0] = 0
-        low[2] = 0
+        low[2] = -5000
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
@@ -82,12 +82,12 @@ class PensionEnv(core.Env):
 
         currHuman = self.humans[self.currHumanIdx]
         if currHuman.active:
-            currHuman.liveOneYear()
-
             if action < 0:
-                reward = currHuman.products[0].doDebitPremium(-action, currHuman)
+                currHuman.products[0].doDebitPremium(-action, currHuman)
             else:
-                reward = currHuman.products[0].doPayOut(action, currHuman)
+                currHuman.products[0].doPayOut(action, currHuman)
+
+            currHuman.liveOneYear()
 
         # removeTheDead() # disabled to keep humans from changing list indices
 
@@ -120,7 +120,12 @@ class PensionEnv(core.Env):
 
         if yearChanged:
             # only do this once per year:
-            reward += self.companies[0].doCompanyThings()
+            self.companies[0].doCompanyThings()
+
+        if self.companies[0].funds < 0:
+            reward += 0.0
+        else:
+            reward += 1.0  # (1.0+1.0) / (livingHumans+1.0)  # reward for staying alive
 
         if yearChanged:  # Human(s) decide whether to become clients
             # 50% chance for new customer on reputation 0
@@ -146,7 +151,8 @@ class PensionEnv(core.Env):
         return (observation, reward, self._terminal(), info)
 
     def render(self, mode='human'):
-        raise NotImplementedError
+        pass
+        # raise NotImplementedError
 
     def close(self):
         if self.viewer:
@@ -170,7 +176,8 @@ class PensionEnv(core.Env):
         Human's age, Company's funds
         """
         currHuman = self.humans[self.currHumanIdx]
-        return np.array([currHuman.age,
+        age = currHuman.age if currHuman.active else 0
+        return np.array([age,
                          self.companies[0].funds,
                          self.companies[0].reputation,
                          # len([c for c in self.companies[0].clients if c.active]),
@@ -199,12 +206,8 @@ class PensionEnv(core.Env):
 
         def doCompanyThings(self):
             if self.reputation < 0:
-                self.reputation += 5
+                self.reputation += 20
             self.funds -= 2000  # cost to keep doors open
-            if self.funds < 0:
-                return 0
-            else:
-                return 1  # reward for staying alive
 
         def damageReputation(self, damage):
             self.reputation += damage
@@ -259,13 +262,15 @@ class PensionEnv(core.Env):
             PensionEnv.InsuranceCompany.clientIdSeq += 1
             self.products = []
             self.age = 20
-            self.funds = 0
+            self.funds = 20000
             self.income = 20000
             self.livingExpenses = 15000
             self.lastTransaction = 0
             self.expectation = 0.6 * self.income
             self.happiness = 0
             self.active = True
+            c = self.findCompany()
+            self.orderProduct(c)
 
         def findCompany(self):
             reputations = [c.reputation for c in self.env.companies]
@@ -303,7 +308,7 @@ class PensionEnv(core.Env):
             if self.age > 67 and self.lastTransaction < self.expectation:
                 happinessChange -= 20
                 if self.env.logger:
-                    print(self.env.year, "Human", self.id, "received less than expectation of {}!".format(self.expectation), self.happiness+happinessChange, file=self.env.logger)
+                    print(self.env.year, "Human", self.id, "received {}, less than expectation of {}!".format(self.lastTransaction, self.expectation), self.happiness+happinessChange, file=self.env.logger)
 
             if self.funds <= 0:
                 happinessChange -= 100
@@ -318,10 +323,12 @@ class PensionEnv(core.Env):
                 self.happiness += happinessChange
 
             leaving = False
+            reputation = None
             for p in self.products:
                 if (self.happiness < 0):  # Note: can only happen if >=67
                     p.company.damageReputation(self.happiness)
                 leaving |= self.age < 67 and p.company.reputation < -1500
+                reputation = p.company.reputation
                 # if leaving:
                 #     print("HUMAN IS LEAVING, happiness", self.happiness)
 
@@ -332,7 +339,7 @@ class PensionEnv(core.Env):
             self.active = not (leaving or died)
             if not self.active and self.env.logger:
                 what = "Goodbye" if leaving else "RIP"
-                print(self.env.year, what, "Human", self.id, "aged", self.age, "happiness", self.happiness, file=self.env.logger)
+                print(self.env.year, what, "Human", self.id, "aged", self.age, "happiness", self.happiness, "reputation", reputation, file=self.env.logger)
 
             self.age += 1
 
