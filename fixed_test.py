@@ -1,11 +1,11 @@
 # Test code (fixed business policy):
 
 from envs.pension_env import PensionEnv
-from math import floor
 import sys
+import numpy as np
 
 env = PensionEnv()
-#env.logger = stderr
+# env.logger = stderr
 
 print("State space", env.observation_space)
 if hasattr(env.observation_space, "low"):
@@ -20,7 +20,7 @@ if hasattr(env.action_space, "low"):
 
 env.logger = sys.stdout
 
-EPISODES = 10
+EPISODES = 3
 MAX_STEPS = 20000
 
 overall = 0
@@ -39,9 +39,20 @@ for episode in range(EPISODES):
         observation, reward, done, info = env.step(action)
         cumul_reward += reward
 
-        h = info["human"]
-        c = info["company"]
-        print(info["year"], "human:", h.id, h.age, h.funds, h.lastTransaction, h.happiness, "reward:", reward, "company:", c.funds, c.reputation)
+        # h = info["human"]
+        # c = info["company"]
+        # print(info["year"], "human:", h.id, h.age, h.funds, h.lastTransaction, h.happiness, "reward:", reward, "company:", c.funds, c.reputation)
+        if hasattr(env, "logger") and env.logger:
+            print("year", info["year"],
+                    "funds", info["company"].funds,
+                    "reputation", info["company"].reputation,
+                    "humans", len([h for h in env.humans if h.active]),
+                    "meanAge", np.mean([h.age for h in env.humans]),
+                    "currAge", info["human"].age,
+                    "hFunds", info["human"].funds,
+                    "hID", info["human"].id,
+                    "stateActionkey", "0-0-0-"+str(action), file=env.logger)
+
         if done:
             print("Episode {} finished after {} timesteps with cumulative reward {}".format(episode, t+1, cumul_reward))
             overall += cumul_reward

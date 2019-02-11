@@ -1,4 +1,4 @@
-#from numpy.random import normal
+# from numpy.random import normal
 import numpy as np
 from gym import core, spaces
 from gym.utils import seeding
@@ -205,6 +205,8 @@ class PensionEnv(core.Env):
         def doCompanyThings(self):
             if self.reputation < 0:
                 self.reputation += 20
+            if self.reputation > 0:
+                self.reputation = 0
             self.funds -= 2000  # cost to keep doors open
 
         def damageReputation(self, damage):
@@ -229,9 +231,11 @@ class PensionEnv(core.Env):
 
         def doDebitPremium(self, amount, client):
             if (client.funds < amount):
-                return 0 # -1  # cannot get premium from client
+                return 0  # -1  # cannot get premium from client
                 if PensionEnv.logger:
-                    print(PensionEnv.year, "Client", client.id, "has insufficient funds for premium!", file=PensionEnv.logger)
+                    print(PensionEnv.year, "Client", client.id,
+                          "has insufficient funds for premium!",
+                          file=PensionEnv.logger)
             else:
                 client.funds -= amount
                 self.company.funds += amount
@@ -243,7 +247,8 @@ class PensionEnv(core.Env):
             # if (self.company.funds < amount):
             #     return 0 # -100  # +self.company.reputation # cannot pay anything out
             #     if PensionEnv.logger:
-            #         print(PensionEnv.year, "Company", self.company.id, "has insufficient funds!", file=PensionEnv.logger)
+            #         print(PensionEnv.year, "Company", self.company.id,
+            #               "has insufficient funds!", file=PensionEnv.logger)
             # else:
             self.company.funds -= amount
             client.funds += amount
