@@ -333,8 +333,13 @@ class PensionEnv(core.Env):
                 angryEnough = random.random() > norm.cdf(p.company.reputation, loc=-1500, scale=500)
                 leaving |= self.age < 67 and angryEnough
                 reputation = p.company.reputation
-                # if leaving:
-                #     print("HUMAN IS LEAVING, happiness", self.happiness)
+                if leaving:
+                    # print("HUMAN IS LEAVING, happiness", self.happiness)
+                    # Adjusting the regulations
+                    contribTotal = (self.age - 20) * 1500
+                    refund = 0.75 * contribTotal
+                    p.company.funds -= refund
+                    self.funds += refund
 
             self.funds -= self.livingExpenses
 
