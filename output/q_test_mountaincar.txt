@@ -1,3 +1,4 @@
+{'num_bins': 20, 'log_bins': False}
 State space Box(2,)
 - low: [-1.20000005 -0.07      ]
 - high: [ 0.60000002  0.07      ]
