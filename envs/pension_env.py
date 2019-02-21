@@ -334,12 +334,16 @@ class PensionEnv(core.Env):
                 leaving |= self.age < 67 and angryEnough
                 reputation = p.company.reputation
                 if leaving:
-                    # print("HUMAN IS LEAVING, happiness", self.happiness)
                     # Adjusting the regulations
                     contribTotal = (self.age - 20) * 1500
                     refund = 0.75 * contribTotal
+                    # print("HUMAN IS LEAVING, age", self.age, ", happiness", self.happiness,
+                    #         ", contribTotal", contribTotal, ", refund", refund,
+                    #         ", c.funds before", p.company.funds,
+                    #         ", h.funds before", self.funds)
                     p.company.funds -= refund
                     self.funds += refund
+                    # print("after: c.funds", p.company.funds, ", h.funds", self.funds)
 
             self.funds -= self.livingExpenses
 
