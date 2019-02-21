@@ -1,0 +1,469 @@
+{'num_bins': 12, 'log_bins': True}
+State space Box(2,)
+- low: [       0. -1000000.]
+- high: [1.e+02 1.e+06]
+creating logarithmic grid
+dimension 1 crosses zero
+Grid: [<low>, <high>] / <bins> => <splits>
+    [1.0, 100.0] / 12 => [  1.           1.46779927   2.15443469   3.16227766   4.64158883
+   6.81292069  10.          14.67799268  21.5443469   31.6227766
+  46.41588834  68.12920691 100.        ]
+    [-1000000.0, 1000000.0] / 12 => [-1.e+06 -1.e+05 -1.e+04 -1.e+03 -1.e+02 -1.e+01  1.e+00  1.e+01  1.e+02
+  1.e+03  1.e+04  1.e+05  1.e+06]
+state grid [[ 1.00000000e+00  1.46779927e+00  2.15443469e+00  3.16227766e+00
+   4.64158883e+00  6.81292069e+00  1.00000000e+01  1.46779927e+01
+   2.15443469e+01  3.16227766e+01  4.64158883e+01  6.81292069e+01
+   1.00000000e+02]
+ [-1.00000000e+06 -1.00000000e+05 -1.00000000e+04 -1.00000000e+03
+  -1.00000000e+02 -1.00000000e+01  1.00000000e+00  1.00000000e+01
+   1.00000000e+02  1.00000000e+03  1.00000000e+04  1.00000000e+05
+   1.00000000e+06]]
+Action space: Discrete(2)
+
+LEARNING:
+
+{'average_rewards': False, 'q_table': {}, 'max_steps': 20000, 'episodes': 20000, 'epsilon_decay': 1, 'epsilon_min': 0.03, 'gamma': 0.99, 'alpha_decay': 1, 'alpha_min': 0.01, 'env': <envs.pension_env.PensionEnv object at 0x7f7ccef858d0>}
+Episode 0 finished after 3148 timesteps with cumulative reward 3147.0 (last 100 mean = 31.47)
+year 148, q table size 15, epsilon 0.03, alpha 0.01, #humans 20, reputation -980.0
+Episode 1 finished after 6334 timesteps with cumulative reward 6333.0 (last 100 mean = 94.8)
+year 276, q table size 18, epsilon 0.03, alpha 0.01, #humans 30, reputation -1020.0
+Episode 2 finished after 4722 timesteps with cumulative reward 4721.0 (last 100 mean = 142.01)
+year 226, q table size 23, epsilon 0.03, alpha 0.01, #humans 20, reputation -1261.25
+Episode 3 finished after 7 timesteps with cumulative reward 6.0 (last 100 mean = 142.07)
+year 3, q table size 24, epsilon 0.03, alpha 0.01, #humans 4, reputation 0
+Episode 4 finished after 5558 timesteps with cumulative reward 5557.0 (last 100 mean = 197.64)
+year 232, q table size 28, epsilon 0.03, alpha 0.01, #humans 20, reputation -1217.5
+Episode 5 finished after 1767 timesteps with cumulative reward 1766.0 (last 100 mean = 215.3)
+year 101, q table size 29, epsilon 0.03, alpha 0.01, #humans 17, reputation -960.0
+Episode 6 finished after 2179 timesteps with cumulative reward 2178.0 (last 100 mean = 237.08)
+year 105, q table size 30, epsilon 0.03, alpha 0.01, #humans 20, reputation -1017.5
+Episode 7 finished after 4824 timesteps with cumulative reward 4823.0 (last 100 mean = 285.31)
+year 220, q table size 31, epsilon 0.03, alpha 0.01, #humans 25, reputation -1172.5
+Episode 8 finished after 3911 timesteps with cumulative reward 3910.0 (last 100 mean = 324.41)
+year 173, q table size 32, epsilon 0.03, alpha 0.01, #humans 17, reputation -860.0
+Episode 9 finished after 6121 timesteps with cumulative reward 6120.0 (last 100 mean = 385.61)
+year 256, q table size 33, epsilon 0.03, alpha 0.01, #humans 19, reputation -1285.0
+Episode 10 finished after 3095 timesteps with cumulative reward 3094.0 (last 100 mean = 416.55)
+year 136, q table size 33, epsilon 0.03, alpha 0.01, #humans 24, reputation -380.0
+Episode 11 finished after 6 timesteps with cumulative reward 5.0 (last 100 mean = 416.6)
+year 3, q table size 34, epsilon 0.03, alpha 0.01, #humans 4, reputation 0
+Episode 12 finished after 4568 timesteps with cumulative reward 4567.0 (last 100 mean = 462.27)
+year 182, q table size 34, epsilon 0.03, alpha 0.01, #humans 18, reputation -1140.0
+Episode 13 finished after 2746 timesteps with cumulative reward 2745.0 (last 100 mean = 489.72)
+year 147, q table size 34, epsilon 0.03, alpha 0.01, #humans 20, reputation -802.5
+Episode 14 finished after 5194 timesteps with cumulative reward 5193.0 (last 100 mean = 541.65)
+year 227, q table size 34, epsilon 0.03, alpha 0.01, #humans 21, reputation -773.75
+Episode 15 finished after 7 timesteps with cumulative reward 6.0 (last 100 mean = 541.71)
+year 6, q table size 34, epsilon 0.03, alpha 0.01, #humans 3, reputation 0
+Episode 16 finished after 7845 timesteps with cumulative reward 7844.0 (last 100 mean = 620.15)
+year 332, q table size 34, epsilon 0.03, alpha 0.01, #humans 22, reputation -360.0
+Episode 17 finished after 4345 timesteps with cumulative reward 4344.0 (last 100 mean = 663.59)
+year 180, q table size 34, epsilon 0.03, alpha 0.01, #humans 27, reputation -970.0
+Episode 18 finished after 11 timesteps with cumulative reward 10.0 (last 100 mean = 663.69)
+year 4, q table size 35, epsilon 0.03, alpha 0.01, #humans 4, reputation 0
+Episode 19 finished after 2699 timesteps with cumulative reward 2698.0 (last 100 mean = 690.67)
+year 118, q table size 37, epsilon 0.03, alpha 0.01, #humans 12, reputation -1550.0
+Episode 20 finished after 3659 timesteps with cumulative reward 3658.0 (last 100 mean = 727.25)
+year 170, q table size 37, epsilon 0.03, alpha 0.01, #humans 13, reputation -1435.0
+Episode 21 finished after 2368 timesteps with cumulative reward 2367.0 (last 100 mean = 750.92)
+year 119, q table size 37, epsilon 0.03, alpha 0.01, #humans 16, reputation -952.5
+Episode 22 finished after 6210 timesteps with cumulative reward 6209.0 (last 100 mean = 813.01)
+year 282, q table size 37, epsilon 0.03, alpha 0.01, #humans 3, reputation -1047.5
+Episode 23 finished after 4776 timesteps with cumulative reward 4775.0 (last 100 mean = 860.76)
+year 195, q table size 37, epsilon 0.03, alpha 0.01, #humans 20, reputation -1000.0
+Episode 24 finished after 3353 timesteps with cumulative reward 3352.0 (last 100 mean = 894.28)
+year 144, q table size 37, epsilon 0.03, alpha 0.01, #humans 22, reputation -600.0
+Episode 25 finished after 2463 timesteps with cumulative reward 2462.0 (last 100 mean = 918.9)
+year 104, q table size 37, epsilon 0.03, alpha 0.01, #humans 24, reputation -1040.0
+Episode 26 finished after 2752 timesteps with cumulative reward 2751.0 (last 100 mean = 946.41)
+year 132, q table size 37, epsilon 0.03, alpha 0.01, #humans 14, reputation -1630.0
+Episode 27 finished after 4775 timesteps with cumulative reward 4774.0 (last 100 mean = 994.15)
+year 214, q table size 37, epsilon 0.03, alpha 0.01, #humans 18, reputation -1160.0
+Episode 28 finished after 2575 timesteps with cumulative reward 2574.0 (last 100 mean = 1019.89)
+year 134, q table size 37, epsilon 0.03, alpha 0.01, #humans 17, reputation -879.375
+Episode 29 finished after 23 timesteps with cumulative reward 22.0 (last 100 mean = 1020.11)
+year 9, q table size 37, epsilon 0.03, alpha 0.01, #humans 5, reputation 0
+Episode 30 finished after 3583 timesteps with cumulative reward 3582.0 (last 100 mean = 1055.93)
+year 160, q table size 37, epsilon 0.03, alpha 0.01, #humans 10, reputation -1285.0
+Episode 31 finished after 5157 timesteps with cumulative reward 5156.0 (last 100 mean = 1107.49)
+year 228, q table size 37, epsilon 0.03, alpha 0.01, #humans 21, reputation -1042.5
+Episode 32 finished after 1904 timesteps with cumulative reward 1903.0 (last 100 mean = 1126.52)
+year 99, q table size 37, epsilon 0.03, alpha 0.01, #humans 13, reputation -1301.875
+Episode 33 finished after 2407 timesteps with cumulative reward 2406.0 (last 100 mean = 1150.58)
+year 112, q table size 37, epsilon 0.03, alpha 0.01, #humans 13, reputation -1041.25
+Episode 34 finished after 4 timesteps with cumulative reward 3.0 (last 100 mean = 1150.61)
+year 3, q table size 37, epsilon 0.03, alpha 0.01, #humans 3, reputation 0
+Episode 35 finished after 3419 timesteps with cumulative reward 3418.0 (last 100 mean = 1184.79)
+year 147, q table size 37, epsilon 0.03, alpha 0.01, #humans 26, reputation -530.0
+Episode 36 finished after 2258 timesteps with cumulative reward 2257.0 (last 100 mean = 1207.36)
+year 116, q table size 37, epsilon 0.03, alpha 0.01, #humans 16, reputation -688.75
+Episode 37 finished after 4719 timesteps with cumulative reward 4718.0 (last 100 mean = 1254.54)
+year 228, q table size 37, epsilon 0.03, alpha 0.01, #humans 12, reputation -1730.0
+Episode 38 finished after 7002 timesteps with cumulative reward 7001.0 (last 100 mean = 1324.55)
+year 274, q table size 37, epsilon 0.03, alpha 0.01, #humans 19, reputation -1007.5
+Episode 39 finished after 4345 timesteps with cumulative reward 4344.0 (last 100 mean = 1367.99)
+year 187, q table size 37, epsilon 0.03, alpha 0.01, #humans 20, reputation -1230.0
+Episode 40 finished after 3234 timesteps with cumulative reward 3233.0 (last 100 mean = 1400.32)
+year 146, q table size 37, epsilon 0.03, alpha 0.01, #humans 13, reputation -1133.75
+Episode 41 finished after 7697 timesteps with cumulative reward 7696.0 (last 100 mean = 1477.28)
+year 323, q table size 37, epsilon 0.03, alpha 0.01, #humans 20, reputation -1140.0
+Episode 42 finished after 2 timesteps with cumulative reward 1.0 (last 100 mean = 1477.29)
+year 2, q table size 37, epsilon 0.03, alpha 0.01, #humans 1, reputation 0
+Episode 43 finished after 5452 timesteps with cumulative reward 5451.0 (last 100 mean = 1531.8)
+year 235, q table size 37, epsilon 0.03, alpha 0.01, #humans 14, reputation -1410.0
+Episode 44 finished after 4 timesteps with cumulative reward 3.0 (last 100 mean = 1531.83)
+year 3, q table size 37, epsilon 0.03, alpha 0.01, #humans 2, reputation 0
+Episode 45 finished after 3665 timesteps with cumulative reward 3664.0 (last 100 mean = 1568.47)
+year 172, q table size 37, epsilon 0.03, alpha 0.01, #humans 15, reputation -1370.0
+Episode 46 finished after 4342 timesteps with cumulative reward 4341.0 (last 100 mean = 1611.88)
+year 170, q table size 37, epsilon 0.03, alpha 0.01, #humans 27, reputation -1067.5
+Episode 47 finished after 5208 timesteps with cumulative reward 5207.0 (last 100 mean = 1663.95)
+year 249, q table size 37, epsilon 0.03, alpha 0.01, #humans 12, reputation -1433.75
+Episode 48 finished after 5300 timesteps with cumulative reward 5299.0 (last 100 mean = 1716.94)
+year 237, q table size 37, epsilon 0.03, alpha 0.01, #humans 17, reputation -600.0
+Episode 49 finished after 1831 timesteps with cumulative reward 1830.0 (last 100 mean = 1735.24)
+year 86, q table size 37, epsilon 0.03, alpha 0.01, #humans 21, reputation -1202.5
+Episode 50 finished after 2123 timesteps with cumulative reward 2122.0 (last 100 mean = 1756.46)
+year 100, q table size 37, epsilon 0.03, alpha 0.01, #humans 15, reputation -1346.25
+Episode 51 finished after 3888 timesteps with cumulative reward 3887.0 (last 100 mean = 1795.33)
+year 160, q table size 37, epsilon 0.03, alpha 0.01, #humans 22, reputation -960.0
+Episode 52 finished after 4459 timesteps with cumulative reward 4458.0 (last 100 mean = 1839.91)
+year 190, q table size 37, epsilon 0.03, alpha 0.01, #humans 20, reputation -1417.5
+Episode 53 finished after 2555 timesteps with cumulative reward 2554.0 (last 100 mean = 1865.45)
+year 139, q table size 37, epsilon 0.03, alpha 0.01, #humans 11, reputation -1198.75
+Episode 54 finished after 3180 timesteps with cumulative reward 3179.0 (last 100 mean = 1897.24)
+year 149, q table size 37, epsilon 0.03, alpha 0.01, #humans 27, reputation -638.75
+Episode 55 finished after 4042 timesteps with cumulative reward 4041.0 (last 100 mean = 1937.65)
+year 175, q table size 37, epsilon 0.03, alpha 0.01, #humans 25, reputation -740.0
+Episode 56 finished after 1390 timesteps with cumulative reward 1389.0 (last 100 mean = 1951.54)
+year 74, q table size 37, epsilon 0.03, alpha 0.01, #humans 19, reputation -1470.0
+Episode 57 finished after 2920 timesteps with cumulative reward 2919.0 (last 100 mean = 1980.73)
+year 143, q table size 37, epsilon 0.03, alpha 0.01, #humans 15, reputation -1430.0
+Episode 58 finished after 4751 timesteps with cumulative reward 4750.0 (last 100 mean = 2028.23)
+year 207, q table size 37, epsilon 0.03, alpha 0.01, #humans 21, reputation -1266.25
+Episode 59 finished after 8 timesteps with cumulative reward 7.0 (last 100 mean = 2028.3)
+year 4, q table size 38, epsilon 0.03, alpha 0.01, #humans 3, reputation 0
+Episode 60 finished after 2339 timesteps with cumulative reward 2338.0 (last 100 mean = 2051.68)
+year 109, q table size 39, epsilon 0.03, alpha 0.01, #humans 14, reputation -905.0
+Episode 61 finished after 3397 timesteps with cumulative reward 3396.0 (last 100 mean = 2085.64)
+year 151, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1378.125
+Episode 62 finished after 3300 timesteps with cumulative reward 3299.0 (last 100 mean = 2118.63)
+year 147, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1195.625
+Episode 63 finished after 2020 timesteps with cumulative reward 2019.0 (last 100 mean = 2138.82)
+year 99, q table size 39, epsilon 0.03, alpha 0.01, #humans 9, reputation -1570.0
+Episode 64 finished after 3557 timesteps with cumulative reward 3556.0 (last 100 mean = 2174.38)
+year 165, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1140.0
+Episode 65 finished after 3094 timesteps with cumulative reward 3093.0 (last 100 mean = 2205.31)
+year 143, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1120.0
+Episode 66 finished after 2959 timesteps with cumulative reward 2958.0 (last 100 mean = 2234.89)
+year 146, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1035.0
+Episode 67 finished after 2619 timesteps with cumulative reward 2618.0 (last 100 mean = 2261.07)
+year 131, q table size 39, epsilon 0.03, alpha 0.01, #humans 12, reputation -1517.5
+Episode 68 finished after 4580 timesteps with cumulative reward 4579.0 (last 100 mean = 2306.86)
+year 180, q table size 39, epsilon 0.03, alpha 0.01, #humans 15, reputation -1540.0
+Episode 69 finished after 6521 timesteps with cumulative reward 6520.0 (last 100 mean = 2372.06)
+year 246, q table size 39, epsilon 0.03, alpha 0.01, #humans 22, reputation -1105.0
+Episode 70 finished after 5907 timesteps with cumulative reward 5906.0 (last 100 mean = 2431.12)
+year 230, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1367.5
+Episode 71 finished after 5453 timesteps with cumulative reward 5452.0 (last 100 mean = 2485.64)
+year 217, q table size 39, epsilon 0.03, alpha 0.01, #humans 18, reputation -990.0
+Episode 72 finished after 5051 timesteps with cumulative reward 5050.0 (last 100 mean = 2536.14)
+year 206, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1112.5
+Episode 73 finished after 7459 timesteps with cumulative reward 7458.0 (last 100 mean = 2610.72)
+year 349, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1128.75
+Episode 74 finished after 1890 timesteps with cumulative reward 1889.0 (last 100 mean = 2629.61)
+year 96, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -895.0
+Episode 75 finished after 3641 timesteps with cumulative reward 3640.0 (last 100 mean = 2666.01)
+year 162, q table size 39, epsilon 0.03, alpha 0.01, #humans 17, reputation -1268.75
+Episode 76 finished after 7878 timesteps with cumulative reward 7877.0 (last 100 mean = 2744.78)
+year 346, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1413.125
+Episode 77 finished after 3912 timesteps with cumulative reward 3911.0 (last 100 mean = 2783.89)
+year 180, q table size 39, epsilon 0.03, alpha 0.01, #humans 21, reputation -1310.0
+Episode 78 finished after 2530 timesteps with cumulative reward 2529.0 (last 100 mean = 2809.18)
+year 105, q table size 39, epsilon 0.03, alpha 0.01, #humans 21, reputation -885.0
+Episode 79 finished after 2406 timesteps with cumulative reward 2405.0 (last 100 mean = 2833.23)
+year 119, q table size 39, epsilon 0.03, alpha 0.01, #humans 10, reputation -1676.25
+Episode 80 finished after 1421 timesteps with cumulative reward 1420.0 (last 100 mean = 2847.43)
+year 77, q table size 39, epsilon 0.03, alpha 0.01, #humans 31, reputation -760.0
+Episode 81 finished after 1676 timesteps with cumulative reward 1675.0 (last 100 mean = 2864.18)
+year 83, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -938.75
+Episode 82 finished after 7243 timesteps with cumulative reward 7242.0 (last 100 mean = 2936.6)
+year 325, q table size 39, epsilon 0.03, alpha 0.01, #humans 3, reputation -1205.0
+Episode 83 finished after 4231 timesteps with cumulative reward 4230.0 (last 100 mean = 2978.9)
+year 212, q table size 39, epsilon 0.03, alpha 0.01, #humans 8, reputation -1115.625
+Episode 84 finished after 5422 timesteps with cumulative reward 5421.0 (last 100 mean = 3033.11)
+year 208, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1487.5
+Episode 85 finished after 1957 timesteps with cumulative reward 1956.0 (last 100 mean = 3052.67)
+year 114, q table size 39, epsilon 0.03, alpha 0.01, #humans 15, reputation -1280.0
+Episode 86 finished after 3106 timesteps with cumulative reward 3105.0 (last 100 mean = 3083.72)
+year 137, q table size 39, epsilon 0.03, alpha 0.01, #humans 20, reputation -1070.0
+Episode 87 finished after 3093 timesteps with cumulative reward 3092.0 (last 100 mean = 3114.64)
+year 142, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1140.0
+Episode 88 finished after 4902 timesteps with cumulative reward 4901.0 (last 100 mean = 3163.65)
+year 214, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1142.5
+Episode 89 finished after 2851 timesteps with cumulative reward 2850.0 (last 100 mean = 3192.15)
+year 165, q table size 39, epsilon 0.03, alpha 0.01, #humans 15, reputation -1189.375
+Episode 90 finished after 3532 timesteps with cumulative reward 3531.0 (last 100 mean = 3227.46)
+year 138, q table size 39, epsilon 0.03, alpha 0.01, #humans 24, reputation -606.25
+Episode 91 finished after 4442 timesteps with cumulative reward 4441.0 (last 100 mean = 3271.87)
+year 194, q table size 39, epsilon 0.03, alpha 0.01, #humans 13, reputation -750.0
+Episode 92 finished after 1903 timesteps with cumulative reward 1902.0 (last 100 mean = 3290.89)
+year 94, q table size 39, epsilon 0.03, alpha 0.01, #humans 24, reputation -1052.5
+Episode 93 finished after 9850 timesteps with cumulative reward 9849.0 (last 100 mean = 3389.38)
+year 424, q table size 39, epsilon 0.03, alpha 0.01, #humans 9, reputation -1038.75
+Episode 94 finished after 4105 timesteps with cumulative reward 4104.0 (last 100 mean = 3430.42)
+year 184, q table size 39, epsilon 0.03, alpha 0.01, #humans 15, reputation -1232.5
+Episode 95 finished after 3385 timesteps with cumulative reward 3384.0 (last 100 mean = 3464.26)
+year 152, q table size 39, epsilon 0.03, alpha 0.01, #humans 19, reputation -1412.5
+Episode 96 finished after 3640 timesteps with cumulative reward 3639.0 (last 100 mean = 3500.65)
+year 158, q table size 39, epsilon 0.03, alpha 0.01, #humans 17, reputation -814.375
+Episode 97 finished after 1683 timesteps with cumulative reward 1682.0 (last 100 mean = 3517.47)
+year 101, q table size 39, epsilon 0.03, alpha 0.01, #humans 14, reputation -1092.5
+Episode 98 finished after 3651 timesteps with cumulative reward 3650.0 (last 100 mean = 3553.97)
+year 166, q table size 39, epsilon 0.03, alpha 0.01, #humans 15, reputation -1202.5
+Episode 99 finished after 4425 timesteps with cumulative reward 4424.0 (last 100 mean = 3598.21)
+year 203, q table size 39, epsilon 0.03, alpha 0.01, #humans 16, reputation -1450.0
+Episode 100 finished after 6012 timesteps with cumulative reward 6011.0 (last 100 mean = 3626.85)
+year 265, q table size 39, epsilon 0.03, alpha 0.01, #humans 10, reputation -1172.5
+Episode 101 finished after 4020 timesteps with cumulative reward 4019.0 (last 100 mean = 3603.71)
+year 176, q table size 39, epsilon 0.03, alpha 0.01, #humans 12, reputation -1570.0
+Episode 102 finished after 4658 timesteps with cumulative reward 4657.0 (last 100 mean = 3603.07)
+year 215, q table size 39, epsilon 0.03, alpha 0.01, #humans 13, reputation -1827.8125
+Episode 103 finished after 1710 timesteps with cumulative reward 1709.0 (last 100 mean = 3620.1)
+year 77, q table size 39, epsilon 0.03, alpha 0.01, #humans 28, reputation -1115.0
+Episode 104 finished after 1376 timesteps with cumulative reward 1375.0 (last 100 mean = 3578.28)
+year 78, q table size 39, epsilon 0.03, alpha 0.01, #humans 17, reputation -1415.0
+Episode 105 finished after 47 timesteps with cumulative reward 46.0 (last 100 mean = 3561.08)
+year 13, q table size 39, epsilon 0.03, alpha 0.01, #humans 7, reputation 0
+Episode 106 finished after 4297 timesteps with cumulative reward 4296.0 (last 100 mean = 3582.26)
+year 174, q table size 39, epsilon 0.03, alpha 0.01, #humans 18, reputation -1152.5
+Episode 107 finished after 4431 timesteps with cumulative reward 4430.0 (last 100 mean = 3578.33)
+year 223, q table size 39, epsilon 0.03, alpha 0.01, #humans 4, reputation -1034.0625
+Episode 108 finished after 3930 timesteps with cumulative reward 3929.0 (last 100 mean = 3578.52)
+year 172, q table size 39, epsilon 0.03, alpha 0.01, #humans 17, reputation -1073.75
+Episode 109 finished after 4553 timesteps with cumulative reward 4552.0 (last 100 mean = 3562.84)
+year 194, q table size 40, epsilon 0.03, alpha 0.01, #humans 15, reputation -1375.0
+Episode 110 finished after 1147 timesteps with cumulative reward 1146.0 (last 100 mean = 3543.36)
+year 78, q table size 40, epsilon 0.03, alpha 0.01, #humans 10, reputation -1127.5
+Episode 111 finished after 5297 timesteps with cumulative reward 5296.0 (last 100 mean = 3596.27)
+year 216, q table size 40, epsilon 0.03, alpha 0.01, #humans 20, reputation -1200.625
+Episode 112 finished after 1790 timesteps with cumulative reward 1789.0 (last 100 mean = 3568.49)
+year 108, q table size 40, epsilon 0.03, alpha 0.01, #humans 13, reputation -1380.0
+Episode 113 finished after 6983 timesteps with cumulative reward 6982.0 (last 100 mean = 3610.86)
+year 303, q table size 40, epsilon 0.03, alpha 0.01, #humans 9, reputation -1230.0
+Episode 114 finished after 2208 timesteps with cumulative reward 2207.0 (last 100 mean = 3581.0)
+year 110, q table size 40, epsilon 0.03, alpha 0.01, #humans 20, reputation -1420.0
+Episode 115 finished after 4200 timesteps with cumulative reward 4199.0 (last 100 mean = 3622.93)
+year 187, q table size 40, epsilon 0.03, alpha 0.01, #humans 19, reputation -950.0
+Episode 116 finished after 5211 timesteps with cumulative reward 5210.0 (last 100 mean = 3596.59)
+year 251, q table size 40, epsilon 0.03, alpha 0.01, #humans 14, reputation -1190.0
+Episode 117 finished after 5290 timesteps with cumulative reward 5289.0 (last 100 mean = 3606.04)
+year 235, q table size 40, epsilon 0.03, alpha 0.01, #humans 13, reputation -1165.0
+Episode 118 finished after 4724 timesteps with cumulative reward 4723.0 (last 100 mean = 3653.17)
+year 185, q table size 40, epsilon 0.03, alpha 0.01, #humans 18, reputation -1390.0
+Episode 119 finished after 4446 timesteps with cumulative reward 4445.0 (last 100 mean = 3670.64)
+year 224, q table size 40, epsilon 0.03, alpha 0.01, #humans 16, reputation -1285.0
+Episode 120 finished after 7563 timesteps with cumulative reward 7562.0 (last 100 mean = 3709.68)
+year 319, q table size 40, epsilon 0.03, alpha 0.01, #humans 15, reputation -1522.5
+Episode 121 finished after 3882 timesteps with cumulative reward 3881.0 (last 100 mean = 3724.82)
+year 177, q table size 40, epsilon 0.03, alpha 0.01, #humans 15, reputation -1260.0
+Episode 122 finished after 3100 timesteps with cumulative reward 3099.0 (last 100 mean = 3693.72)
+year 153, q table size 40, epsilon 0.03, alpha 0.01, #humans 20, reputation -1217.5
+Episode 123 finished after 5174 timesteps with cumulative reward 5173.0 (last 100 mean = 3697.7)
+year 214, q table size 40, epsilon 0.03, alpha 0.01, #humans 19, reputation -1287.5
+Episode 124 finished after 5924 timesteps with cumulative reward 5923.0 (last 100 mean = 3723.41)
+year 272, q table size 40, epsilon 0.03, alpha 0.01, #humans 10, reputation -1461.25
+Episode 125 finished after 1484 timesteps with cumulative reward 1483.0 (last 100 mean = 3713.62)
+year 86, q table size 40, epsilon 0.03, alpha 0.01, #humans 14, reputation -1240.0
+Episode 126 finished after 4404 timesteps with cumulative reward 4403.0 (last 100 mean = 3730.14)
+year 220, q table size 40, epsilon 0.03, alpha 0.01, #humans 15, reputation -1257.5
+Episode 127 finished after 2687 timesteps with cumulative reward 2686.0 (last 100 mean = 3709.26)
+year 120, q table size 40, epsilon 0.03, alpha 0.01, #humans 13, reputation -963.75
+Episode 128 finished after 2648 timesteps with cumulative reward 2647.0 (last 100 mean = 3709.99)
+year 156, q table size 40, epsilon 0.03, alpha 0.01, #humans 4, reputation -1270.0
+Episode 129 finished after 6009 timesteps with cumulative reward 6008.0 (last 100 mean = 3769.85)
+year 255, q table size 40, epsilon 0.03, alpha 0.01, #humans 19, reputation -1170.0
+Episode 130 finished after 9912 timesteps with cumulative reward 9911.0 (last 100 mean = 3833.14)
+year 434, q table size 40, epsilon 0.03, alpha 0.01, #humans 10, reputation -1296.25
+Episode 131 finished after 2030 timesteps with cumulative reward 2029.0 (last 100 mean = 3801.87)
+year 97, q table size 41, epsilon 0.03, alpha 0.01, #humans 17, reputation -1380.0
+Episode 132 finished after 1732 timesteps with cumulative reward 1731.0 (last 100 mean = 3800.15)
+year 95, q table size 41, epsilon 0.03, alpha 0.01, #humans 18, reputation -1040.0
+Episode 133 finished after 8 timesteps with cumulative reward 7.0 (last 100 mean = 3776.16)
+year 6, q table size 41, epsilon 0.03, alpha 0.01, #humans 2, reputation 0
+Episode 134 finished after 1196 timesteps with cumulative reward 1195.0 (last 100 mean = 3788.08)
+year 61, q table size 41, epsilon 0.03, alpha 0.01, #humans 22, reputation -1140.0
+Episode 135 finished after 4202 timesteps with cumulative reward 4201.0 (last 100 mean = 3795.91)
+year 175, q table size 41, epsilon 0.03, alpha 0.01, #humans 20, reputation -1205.0
+Episode 136 finished after 1906 timesteps with cumulative reward 1905.0 (last 100 mean = 3792.39)
+year 104, q table size 41, epsilon 0.03, alpha 0.01, #humans 14, reputation -945.0
+Episode 137 finished after 4728 timesteps with cumulative reward 4727.0 (last 100 mean = 3792.48)
+year 211, q table size 41, epsilon 0.03, alpha 0.01, #humans 21, reputation -1385.0
+Episode 138 finished after 7036 timesteps with cumulative reward 7035.0 (last 100 mean = 3792.82)
+year 282, q table size 41, epsilon 0.03, alpha 0.01, #humans 18, reputation -1368.75
+Episode 139 finished after 959 timesteps with cumulative reward 958.0 (last 100 mean = 3758.96)
+year 60, q table size 41, epsilon 0.03, alpha 0.01, #humans 5, reputation -1700.0
+Episode 140 finished after 823 timesteps with cumulative reward 822.0 (last 100 mean = 3734.85)
+year 164, q table size 46, epsilon 0.03, alpha 0.01, #humans 0, reputation -3340
+Episode 141 finished after 1438 timesteps with cumulative reward 1437.0 (last 100 mean = 3672.26)
+year 71, q table size 46, epsilon 0.03, alpha 0.01, #humans 20, reputation -1162.5
+Episode 142 finished after 4410 timesteps with cumulative reward 4409.0 (last 100 mean = 3716.34)
+year 218, q table size 46, epsilon 0.03, alpha 0.01, #humans 16, reputation -1103.75
+Episode 143 finished after 4023 timesteps with cumulative reward 4022.0 (last 100 mean = 3702.05)
+year 185, q table size 46, epsilon 0.03, alpha 0.01, #humans 17, reputation -1187.5
+Episode 144 finished after 3531 timesteps with cumulative reward 3530.0 (last 100 mean = 3737.32)
+year 175, q table size 46, epsilon 0.03, alpha 0.01, #humans 5, reputation -752.5
+Episode 145 finished after 7272 timesteps with cumulative reward 7271.0 (last 100 mean = 3773.39)
+year 305, q table size 46, epsilon 0.03, alpha 0.01, #humans 15, reputation -880.625
+Episode 146 finished after 3602 timesteps with cumulative reward 3601.0 (last 100 mean = 3765.99)
+year 160, q table size 46, epsilon 0.03, alpha 0.01, #humans 14, reputation -1071.25
+Episode 147 finished after 5838 timesteps with cumulative reward 5837.0 (last 100 mean = 3772.29)
+year 256, q table size 46, epsilon 0.03, alpha 0.01, #humans 10, reputation -920.625
+Episode 148 finished after 1402 timesteps with cumulative reward 1401.0 (last 100 mean = 3733.31)
+year 65, q table size 46, epsilon 0.03, alpha 0.01, #humans 31, reputation -1070.0
+Episode 149 finished after 2308 timesteps with cumulative reward 2307.0 (last 100 mean = 3738.08)
+year 111, q table size 46, epsilon 0.03, alpha 0.01, #humans 14, reputation -1192.5
+Episode 150 finished after 1716 timesteps with cumulative reward 1715.0 (last 100 mean = 3734.01)
+year 94, q table size 46, epsilon 0.03, alpha 0.01, #humans 21, reputation -1435.0
+Episode 151 finished after 1954 timesteps with cumulative reward 1953.0 (last 100 mean = 3714.67)
+year 111, q table size 46, epsilon 0.03, alpha 0.01, #humans 14, reputation -1158.75
+Episode 152 finished after 1068 timesteps with cumulative reward 1067.0 (last 100 mean = 3680.76)
+year 62, q table size 46, epsilon 0.03, alpha 0.01, #humans 18, reputation -1560
+Episode 153 finished after 2679 timesteps with cumulative reward 2678.0 (last 100 mean = 3682.0)
+year 436, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1477.5
+Episode 154 finished after 1519 timesteps with cumulative reward 1518.0 (last 100 mean = 3665.39)
+year 83, q table size 47, epsilon 0.03, alpha 0.01, #humans 11, reputation -729.375
+Episode 155 finished after 1575 timesteps with cumulative reward 1574.0 (last 100 mean = 3640.72)
+year 77, q table size 47, epsilon 0.03, alpha 0.01, #humans 17, reputation -1185.0
+Episode 156 finished after 5621 timesteps with cumulative reward 5620.0 (last 100 mean = 3683.03)
+year 253, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1045.0
+Episode 157 finished after 7733 timesteps with cumulative reward 7732.0 (last 100 mean = 3731.16)
+year 327, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1545.0
+Episode 158 finished after 2147 timesteps with cumulative reward 2146.0 (last 100 mean = 3705.12)
+year 111, q table size 47, epsilon 0.03, alpha 0.01, #humans 21, reputation -1460.0
+Episode 159 finished after 6470 timesteps with cumulative reward 6469.0 (last 100 mean = 3769.74)
+year 268, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1287.5
+Episode 160 finished after 2325 timesteps with cumulative reward 2324.0 (last 100 mean = 3769.6)
+year 121, q table size 47, epsilon 0.03, alpha 0.01, #humans 13, reputation -1292.5
+Episode 161 finished after 2996 timesteps with cumulative reward 2995.0 (last 100 mean = 3765.59)
+year 125, q table size 47, epsilon 0.03, alpha 0.01, #humans 15, reputation -775.0
+Episode 162 finished after 1165 timesteps with cumulative reward 1164.0 (last 100 mean = 3744.24)
+year 60, q table size 47, epsilon 0.03, alpha 0.01, #humans 24, reputation -1347.5
+Episode 163 finished after 2345 timesteps with cumulative reward 2344.0 (last 100 mean = 3747.49)
+year 113, q table size 47, epsilon 0.03, alpha 0.01, #humans 15, reputation -1195.0
+Episode 164 finished after 2416 timesteps with cumulative reward 2415.0 (last 100 mean = 3736.08)
+year 122, q table size 47, epsilon 0.03, alpha 0.01, #humans 15, reputation -1155.0
+Episode 165 finished after 2387 timesteps with cumulative reward 2386.0 (last 100 mean = 3729.01)
+year 122, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1160.0
+Episode 166 finished after 3149 timesteps with cumulative reward 3148.0 (last 100 mean = 3730.91)
+year 145, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1045.0
+Episode 167 finished after 2743 timesteps with cumulative reward 2742.0 (last 100 mean = 3732.15)
+year 136, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1000.0
+Episode 168 finished after 1796 timesteps with cumulative reward 1795.0 (last 100 mean = 3704.31)
+year 82, q table size 47, epsilon 0.03, alpha 0.01, #humans 23, reputation -1315.0
+Episode 169 finished after 2618 timesteps with cumulative reward 2617.0 (last 100 mean = 3665.28)
+year 255, q table size 47, epsilon 0.03, alpha 0.01, #humans 26, reputation -815.0
+Episode 170 finished after 1013 timesteps with cumulative reward 1012.0 (last 100 mean = 3616.34)
+year 65, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1186.25
+Episode 171 finished after 880 timesteps with cumulative reward 879.0 (last 100 mean = 3570.61)
+year 55, q table size 47, epsilon 0.03, alpha 0.01, #humans 14, reputation -1760
+Episode 172 finished after 1091 timesteps with cumulative reward 1090.0 (last 100 mean = 3531.01)
+year 61, q table size 47, epsilon 0.03, alpha 0.01, #humans 25, reputation -980
+Episode 173 finished after 4728 timesteps with cumulative reward 4727.0 (last 100 mean = 3503.7)
+year 269, q table size 47, epsilon 0.03, alpha 0.01, #humans 25, reputation -885.0
+Episode 174 finished after 3960 timesteps with cumulative reward 3959.0 (last 100 mean = 3524.4)
+year 171, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1357.5
+Episode 175 finished after 3077 timesteps with cumulative reward 3076.0 (last 100 mean = 3518.76)
+year 138, q table size 47, epsilon 0.03, alpha 0.01, #humans 22, reputation -1165.0
+Episode 176 finished after 2498 timesteps with cumulative reward 2497.0 (last 100 mean = 3464.96)
+year 117, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1010.0
+Episode 177 finished after 2875 timesteps with cumulative reward 2874.0 (last 100 mean = 3454.59)
+year 137, q table size 47, epsilon 0.03, alpha 0.01, #humans 22, reputation -796.25
+Episode 178 finished after 5 timesteps with cumulative reward 4.0 (last 100 mean = 3429.34)
+year 3, q table size 47, epsilon 0.03, alpha 0.01, #humans 3, reputation 0
+Episode 179 finished after 2940 timesteps with cumulative reward 2939.0 (last 100 mean = 3434.68)
+year 144, q table size 47, epsilon 0.03, alpha 0.01, #humans 15, reputation -1371.25
+Episode 180 finished after 7892 timesteps with cumulative reward 7891.0 (last 100 mean = 3499.39)
+year 338, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1246.25
+Episode 181 finished after 1476 timesteps with cumulative reward 1475.0 (last 100 mean = 3497.39)
+year 69, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1090.0
+Episode 182 finished after 4022 timesteps with cumulative reward 4021.0 (last 100 mean = 3465.18)
+year 165, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1370.0
+Episode 183 finished after 10995 timesteps with cumulative reward 10994.0 (last 100 mean = 3532.82)
+year 475, q table size 47, epsilon 0.03, alpha 0.01, #humans 12, reputation -1245.0
+Episode 184 finished after 4948 timesteps with cumulative reward 4947.0 (last 100 mean = 3528.08)
+year 198, q table size 47, epsilon 0.03, alpha 0.01, #humans 15, reputation -1175.0
+Episode 185 finished after 2068 timesteps with cumulative reward 2067.0 (last 100 mean = 3529.19)
+year 89, q table size 47, epsilon 0.03, alpha 0.01, #humans 34, reputation -827.5
+Episode 186 finished after 2550 timesteps with cumulative reward 2549.0 (last 100 mean = 3523.63)
+year 139, q table size 47, epsilon 0.03, alpha 0.01, #humans 9, reputation -1781.25
+Episode 187 finished after 3096 timesteps with cumulative reward 3095.0 (last 100 mean = 3523.66)
+year 150, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -1290.0
+Episode 188 finished after 5145 timesteps with cumulative reward 5144.0 (last 100 mean = 3526.09)
+year 234, q table size 47, epsilon 0.03, alpha 0.01, #humans 8, reputation -1338.125
+Episode 189 finished after 3261 timesteps with cumulative reward 3260.0 (last 100 mean = 3530.19)
+year 146, q table size 47, epsilon 0.03, alpha 0.01, #humans 9, reputation -1077.5
+Episode 190 finished after 1438 timesteps with cumulative reward 1437.0 (last 100 mean = 3509.25)
+year 76, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1140.0
+Episode 191 finished after 3940 timesteps with cumulative reward 3939.0 (last 100 mean = 3504.23)
+year 180, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1210.0
+Episode 192 finished after 3601 timesteps with cumulative reward 3600.0 (last 100 mean = 3521.21)
+year 189, q table size 47, epsilon 0.03, alpha 0.01, #humans 13, reputation -1520.0
+Episode 193 finished after 4622 timesteps with cumulative reward 4621.0 (last 100 mean = 3468.93)
+year 199, q table size 47, epsilon 0.03, alpha 0.01, #humans 12, reputation -1517.5
+Episode 194 finished after 3312 timesteps with cumulative reward 3311.0 (last 100 mean = 3461.0)
+year 147, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1252.5
+Episode 195 finished after 4670 timesteps with cumulative reward 4669.0 (last 100 mean = 3473.85)
+year 217, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1655.0
+Episode 196 finished after 5971 timesteps with cumulative reward 5970.0 (last 100 mean = 3497.16)
+year 248, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1286.25
+Episode 197 finished after 6033 timesteps with cumulative reward 6032.0 (last 100 mean = 3540.66)
+year 269, q table size 47, epsilon 0.03, alpha 0.01, #humans 13, reputation -910.0
+Episode 198 finished after 2464 timesteps with cumulative reward 2463.0 (last 100 mean = 3528.79)
+year 103, q table size 47, epsilon 0.03, alpha 0.01, #humans 26, reputation -900.0
+Episode 199 finished after 4319 timesteps with cumulative reward 4318.0 (last 100 mean = 3527.73)
+year 199, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1200.0
+Episode 200 finished after 5004 timesteps with cumulative reward 5003.0 (last 100 mean = 3517.65)
+year 228, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1406.25
+Episode 201 finished after 5616 timesteps with cumulative reward 5615.0 (last 100 mean = 3533.61)
+year 245, q table size 47, epsilon 0.03, alpha 0.01, #humans 23, reputation -1387.5
+Episode 202 finished after 4376 timesteps with cumulative reward 4375.0 (last 100 mean = 3530.79)
+year 189, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -490.0
+Episode 203 finished after 2104 timesteps with cumulative reward 2103.0 (last 100 mean = 3534.73)
+year 112, q table size 47, epsilon 0.03, alpha 0.01, #humans 8, reputation -1070.0
+Episode 204 finished after 1533 timesteps with cumulative reward 1532.0 (last 100 mean = 3536.3)
+year 75, q table size 47, epsilon 0.03, alpha 0.01, #humans 26, reputation -1180.0
+Episode 205 finished after 5682 timesteps with cumulative reward 5681.0 (last 100 mean = 3592.65)
+year 258, q table size 47, epsilon 0.03, alpha 0.01, #humans 10, reputation -1775.0
+Episode 206 finished after 5500 timesteps with cumulative reward 5499.0 (last 100 mean = 3604.68)
+year 245, q table size 47, epsilon 0.03, alpha 0.01, #humans 26, reputation -570.0
+Episode 207 finished after 1534 timesteps with cumulative reward 1533.0 (last 100 mean = 3575.71)
+year 75, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1390.0
+Episode 208 finished after 3357 timesteps with cumulative reward 3356.0 (last 100 mean = 3569.98)
+year 143, q table size 47, epsilon 0.03, alpha 0.01, #humans 18, reputation -1260.0
+Episode 209 finished after 2473 timesteps with cumulative reward 2472.0 (last 100 mean = 3549.18)
+year 113, q table size 47, epsilon 0.03, alpha 0.01, #humans 19, reputation -1342.5
+Episode 210 finished after 1557 timesteps with cumulative reward 1556.0 (last 100 mean = 3553.28)
+year 76, q table size 47, epsilon 0.03, alpha 0.01, #humans 17, reputation -1330.0
+Episode 211 finished after 979 timesteps with cumulative reward 978.0 (last 100 mean = 3510.1)
+year 54, q table size 47, epsilon 0.03, alpha 0.01, #humans 26, reputation -1160
+Episode 212 finished after 989 timesteps with cumulative reward 988.0 (last 100 mean = 3502.09)
+year 136, q table size 47, epsilon 0.03, alpha 0.01, #humans 0, reputation -3860
+Episode 213 finished after 2008 timesteps with cumulative reward 2007.0 (last 100 mean = 3452.34)
+year 100, q table size 47, epsilon 0.03, alpha 0.01, #humans 13, reputation -1645.0
+Episode 214 finished after 3465 timesteps with cumulative reward 3464.0 (last 100 mean = 3464.91)
+year 157, q table size 47, epsilon 0.03, alpha 0.01, #humans 22, reputation -1232.5
+Episode 215 finished after 3206 timesteps with cumulative reward 3205.0 (last 100 mean = 3454.97)
+year 136, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -780.0
+Episode 216 finished after 3806 timesteps with cumulative reward 3805.0 (last 100 mean = 3440.92)
+year 153, q table size 47, epsilon 0.03, alpha 0.01, #humans 21, reputation -1452.5
+Episode 217 finished after 1816 timesteps with cumulative reward 1815.0 (last 100 mean = 3406.18)
+year 109, q table size 47, epsilon 0.03, alpha 0.01, #humans 16, reputation -797.5
+Episode 218 finished after 1362 timesteps with cumulative reward 1361.0 (last 100 mean = 3372.56)
+year 65, q table size 47, epsilon 0.03, alpha 0.01, #humans 23, reputation -895.0
+Episode 219 finished after 2174 timesteps with cumulative reward 2173.0 (last 100 mean = 3349.84)
+year 215, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1377.5
+Episode 220 finished after 1978 timesteps with cumulative reward 1977.0 (last 100 mean = 3293.99)
+year 112, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1217.5
+Episode 221 finished after 4923 timesteps with cumulative reward 4922.0 (last 100 mean = 3304.4)
+year 212, q table size 47, epsilon 0.03, alpha 0.01, #humans 20, reputation -1440.0
