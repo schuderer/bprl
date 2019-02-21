@@ -34,8 +34,8 @@ class PensionEnv(core.Env):
         self.viewer = None
         self.logger = None  # sys.stderr
         # observation: [Human's age, Company's funds, reputation, number of clients]
-        high = np.array([100, 1000000])#, 0, 50])
-        low = np.array([0, -1000000])#, -5000, 0])
+        high = np.array([100, 1000000, 0, 50])
+        low = np.array([0, -1000000, -5000, 0])
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
