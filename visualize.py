@@ -14,7 +14,7 @@ stopEpPattern = re.compile(r'^Average reward last 100 episodes')
 individualRunPattern = re.compile(r'^year ([0-9.-]+) funds ([0-9.-]+) reputation ([0-9.-]+) humans ([0-9.-]+) meanAge ([0-9.-]+) currAge ([0-9.-]+) hFunds ([0-9.-]+) hID ([0-9.-]+) stateActionkey')
 
 
-def processEpisodeLogs(filePattern):
+def processEpisodeLogs(filePattern, max=-1):
     results = []
     for fileName in glob(filePattern):
         with open(fileName) as f:
@@ -40,6 +40,9 @@ def processEpisodeLogs(filePattern):
                         # print(numericRow)
                         episodeData.append(row)
                         epTuple = None
+                        if max > -1 and len(episodeData) >= max:
+                            print("Reached maximum episodes of {}".format(max))
+                            break
             epiCols = ["episode", "steps", "reward", "year",
                        "q_table_size", "epsilon", "alpha", "humans",
                        "reputation"]
@@ -92,7 +95,6 @@ def saveAsCsv(df, fileName):
     df.to_csv(outName, index=False)
 
 
-mpl.rcdefaults()
 # params = {
 #    'axes.labelsize': 8,
 #    'font.size': 8,
@@ -103,10 +105,13 @@ mpl.rcdefaults()
 #    'figure.figsize': [2, 2]
 #    }
 # mpl.rcParams.update(params)
+
+
 lineChartSize = (5, 3)
 
 
 def plotTrainingRewards(dfs, fileName):
+    mpl.rcdefaults()
     df = pd.concat(dfs, axis=1)[['reward']]
     df['median'] = df.median(axis=1)
     df['rolling_mean'] = df['median'].rolling(window=100).mean()
@@ -152,6 +157,7 @@ def plotTrainingRewards(dfs, fileName):
 
 
 def plotRun(df, fileName):
+    mpl.rcdefaults()
     df = df.groupby('year').mean()
 
     def style(ax, bottom=False):
@@ -205,6 +211,74 @@ def plotRun(df, fileName):
     return fig
 
 
+def plotQTable(qTable, stateGrid, name="", xState=0, yState=1, xLabel="", yLabel="", keyString="{}-{}-{}"):
+    mpl.rcdefaults()
+    # nDims = len(stateGrid)+1
+    # indices = np.zeros((nDims, ), dtype=np.int8)
+    # indicesLeft = [i for i in range(nDims-1, 2, -1)]
+    # for d in range(nDims):
+    #     if d == xState:
+    #         indices[d] = 0
+    #     elif d == yState:
+    #         indices[d] = 1
+    #     elif d == nDims-1:
+    #         indices[d] = 2
+    #     else:
+    #         indices[d] = indicesLeft.pop()
+    # qTableFormat = "-".join(["{{{}}}".format(i) for i in indices])
+    nBins = len(stateGrid[0])+1
+    debit = 0
+    credit = 1
+    qMap = np.zeros((nBins, nBins))
+    for x in range(nBins):  # x = age
+        for y in range(nBins):  # y = funds
+            # for MountainCar
+            # action0 = qTable.get(keyString.format(x, y, 0), 0)  # left
+            # action1 = qTable.get(keyString.format(x, y, 1), 0)  # do nothing
+            # action2 = qTable.get(keyString.format(x, y, 2), 0)  # right
+            # if (action1 > action0 and action1 > action2):
+            #     val = 0
+            # else:
+            #     val = action2 - action0
+
+            # non-MountainCar
+            val = qTable.get(keyString.format(x, y, credit), 0) - qTable.get(keyString.format(x, y, debit), 0)
+            qMap[nBins-1-y, x] = val
+
+    sns.set(context="paper")
+    sns.set(rc={'figure.figsize': (4, 4)})
+    ax = sns.heatmap(qMap, linewidth=0.5, cmap="coolwarm", cbar=False, square=True, vmin=-1, vmax=1)  #  center=0)
+    ageGrid = stateGrid[xState]
+    fundsGrid = stateGrid[yState]
+    xTickLabels = [""]
+    yTickLabels = [""]
+    # for MountainCar
+    # xTickLabels.extend(["{:.2f}".format(ageGrid[i]) for i in range(nBins-1)])
+    # yTickLabels.extend(["{:.2f}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
+    # for PensionEnv
+    xTickLabels.extend(["{:.0f}".format(ageGrid[i]) for i in range(nBins-1)])
+    yTickLabels.extend(["{:.0f}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
+    # for CartPole
+    # xTickLabels.extend(["{:.1f}".format(ageGrid[i]) for i in range(nBins-1)])
+    # yTickLabels.extend(["{:1.1e}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
+    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nBins))
+    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nBins))
+    # for non-mountaincar
+    ax.set_xticklabels(xTickLabels, rotation=0)
+    # for mountaincar
+    # ax.set_xticklabels(xTickLabels, rotation=90)
+    ax.set_yticklabels(yTickLabels, rotation=0)
+    ax.set_xlabel(xLabel)
+    ax.set_ylabel(yLabel)
+    if name != "":
+        fig = ax.get_figure()
+        fig.savefig(name, bbox_inches='tight')
+    # ax.xlabel("age")
+    # ax.ylabel("funds")
+    # ax.legend()
+    return ax
+
+
 filePattern = "runs/longevity_19/*.txt"
 dfTuples = processEpisodeLogs(filePattern)
 
@@ -236,67 +310,6 @@ dfRun3 = processRunLog(long_19_run2, noTraining=True)
 long_19_2_plot = plotRun(dfRun3, "figs/long_19_2")
 
 
-def plotQTable(qTable, stateGrid, name="", xState=0, yState=1, xLabel="", yLabel="", keyString="{}-{}-{}"):
-    # nDims = len(stateGrid)+1
-    # indices = np.zeros((nDims, ), dtype=np.int8)
-    # indicesLeft = [i for i in range(nDims-1, 2, -1)]
-    # for d in range(nDims):
-    #     if d == xState:
-    #         indices[d] = 0
-    #     elif d == yState:
-    #         indices[d] = 1
-    #     elif d == nDims-1:
-    #         indices[d] = 2
-    #     else:
-    #         indices[d] = indicesLeft.pop()
-    # qTableFormat = "-".join(["{{{}}}".format(i) for i in indices])
-    nBins = len(stateGrid[0])+1
-    debit = 0
-    credit = 1
-    qMap = np.zeros((nBins, nBins))
-    for x in range(nBins):  # x = age
-        for y in range(nBins):  # y = funds
-            # for MountainCar
-            action0 = qTable.get(keyString.format(x, y, 0), 0)  # left
-            action1 = qTable.get(keyString.format(x, y, 1), 0)  # do nothing
-            action2 = qTable.get(keyString.format(x, y, 2), 0)  # right
-            if (action1 > action0 and action1 > action2):
-                val = 0
-            else:
-                val = action2 - action0
-            # non-MountainCar
-            # val = qTable.get(keyString.format(x, y, credit), 0) - qTable.get(keyString.format(x, y, debit), 0)
-            qMap[nBins-1-y, x] = val
-
-    sns.set(context="paper")
-    sns.set(rc={'figure.figsize': (4, 4)})
-    ax = sns.heatmap(qMap, linewidth=0.5, cmap="coolwarm", cbar=False, square=True, vmin=-1, vmax=1)  #  center=0)
-    ageGrid = stateGrid[xState]
-    fundsGrid = stateGrid[yState]
-    xTickLabels = [""]
-    yTickLabels = [""]
-    # for MountainCar
-    xTickLabels.extend(["{:.2f}".format(ageGrid[i]) for i in range(nBins-1)])
-    yTickLabels.extend(["{:.2f}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
-    # for PensionEnv
-    # xTickLabels.extend(["{:.0f}".format(ageGrid[i]) for i in range(nBins-1)])
-    # yTickLabels.extend(["{:.0f}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
-    # for CartPole
-    # xTickLabels.extend(["{:.0f}".format(ageGrid[i]) for i in range(nBins-1)])
-    # yTickLabels.extend(["{:.0f}".format(fundsGrid[i]) for i in range(nBins-2, -1, -1)])
-    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nBins))
-    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nBins))
-    ax.set_xticklabels(xTickLabels, rotation=90)
-    ax.set_yticklabels(yTickLabels, rotation=0)
-    ax.set_xlabel(xLabel)
-    ax.set_ylabel(yLabel)
-    if name != "":
-        fig = ax.get_figure()
-        fig.savefig(name, bbox_inches='tight')
-    # ax.xlabel("age")
-    # ax.ylabel("funds")
-    # ax.legend()
-    return ax
 
 
 #  model == expect to behave like that; simulation = actual implementation, run
@@ -312,10 +325,74 @@ qTable_long_19_2 = {'8-11-0': 94.85750359596473, '9-11-1': 93.40323065017274, '8
 
 plotQTable(qTable_long_19_2, stateGrid_long_19, name="figs/qtable_long_19_2.pdf", xLabel="customer age", yLabel="company funds")
 
+
+
+
 qTable_long_19_1 = {'8-11-0': 97.7608832910341, '9-11-0': 97.86056856479647, '9-11-1': 95.18174556301601, '10-11-0': 97.85113652791519, '10-11-1': 96.11866236926647, '11-11-1': 81.55740846551616, '10-9-0': 24.520976827244688, '10-10-1': 0.0, '9-12-0': 99.98816738559135, '8-12-0': 99.98806691055029, '10-12-0': 99.98831253087715, '11-12-0': 99.98825668347541, '11-12-1': 99.98353306257485, '9-12-1': 99.97936123840172, '10-12-1': 99.98206246590023, '12-12-1': 99.88681478562623, '12-12-0': 99.98773124376882, '8-12-1': 99.96665661232119, '11-6-1': 0.0, '9-10-1': 0.0, '11-11-0': 50.70707648054032, '12-11-0': 77.45663849592351, '11-10-0': 91.39247931446965, '10-10-0': 95.83944341729408, '10-13-0': 99.94671713612937, '9-13-1': 99.98749001910494, '11-9-1': 0.0, '9-10-0': 93.85127544060744, '8-10-0': 89.58942694297086, '8-11-1': 94.51165778983463, '11-13-0': 99.92468246348758, '10-13-1': 99.98773152369704, '8-13-0': 99.49356878307913, '12-13-1': 99.98415462631984, '11-10-1': 0.0, '12-10-0': 21.27637867283867, '9-13-0': 99.92472677313215, '11-13-1': 99.98745136791563, '0-11-1': 86.59750171856211, '11-6-0': 22.254040343525595, '11-9-0': 41.32242098320778, '12-11-1': 9.890765028745728, '9-9-1': 0.0, '12-13-0': 99.96987987988949, '9-6-0': 18.211942705557174, '10-6-0': 12.09663716735362, '0-12-0': 99.95534947470554, '0-12-1': 99.98792177608104, '0-10-1': 28.31154770612593, '9-9-0': 31.23644770015639, '0-11-0': 78.87565204566951, '0-6-1': 0.0, '8-10-1': 0.0, '0-9-1': 0.20424647057218262, '8-13-1': 99.98465222536989, '0-6-0': 0.06703068854126591, '0-9-0': 0.0, '8-9-0': 6.144653646037612, '8-6-0': 1.6943950163076584, '0-13-1': 37.72116961823961, '9-6-1': 0.0, '0-10-0': 2.4473686028369053, '8-6-1': 0.0}
 
 plotQTable(qTable_long_19_1, stateGrid_long_19, name="figs/qtable_long_19_1.pdf")
 
+
+
+# Reimbursement run data longevity_20 (10000 training episodes)
+
+filePattern = "runs/longevity_20/longevity_20_[345]*[!k].txt"
+dfTuples = processEpisodeLogs(filePattern, max=20000)
+
+dfs = [tup[0] for tup in dfTuples]
+
+df = dfs[0]
+
+df['reward'].count()
+
+rewPlot = plotTrainingRewards(dfs, "figs/long_20_train")
+
+
+
+
+long_plot = plotRun(dfRun2, "figs/long_20_34")
+
+long_run = "runs/longevity_20/longevity_20_48.txt"
+dfRun2 = processRunLog(long_run, noTraining=False)
+
+long_plot = plotRun(dfRun2, "figs/long_20_48")
+
+
+stateGrid_long_20 = [[  1.00000000e+00,   1.46779927e+00,   2.15443469e+00,   3.16227766e+00, 4.64158883e+00,   6.81292069e+00,   1.00000000e+01,   1.46779927e+01, 2.15443469e+01,   3.16227766e+01,   4.64158883e+01,   6.81292069e+01, 1.00000000e+02], [ -1.00000000e+06,  -1.00000000e+05,  -1.00000000e+04,  -1.00000000e+03,
+   -1.00000000e+02,  -1.00000000e+01,   1.00000000e+00,   1.00000000e+01,
+    1.00000000e+02,   1.00000000e+03,   1.00000000e+04,   1.00000000e+05,
+    1.00000000e+06]]
+
+qTable_long_20_34 = {'8-11-0': 91.52946554919686, '9-11-1': 88.95754635483341, '8-10-1': 0.0, '8-10-0': 58.10305581987755, '9-10-1': 0.0, '9-10-0': 65.97371589951263, '9-11-0': 92.12320755153901, '8-11-1': 85.66556529553844, '9-9-0': 36.197058522583056, '10-10-1': 0.0, '9-6-0': 24.475339307919956, '10-10-0': 63.198047425210554, '9-9-1': 0.0, '10-11-0': 92.14782541379138, '10-9-1': 0.0, '8-6-0': 3.0510582322461377, '9-6-1': 0.0, '8-9-0': 10.562136901144946, '10-6-1': 0.0, '0-11-0': 78.98629412143922, '10-9-0': 15.070451506509826, '0-10-1': 16.729018655443586, '8-6-1': 0.0, '10-6-0': 4.185805884213321, '9-12-0': 99.48947299061636, '8-12-0': 99.47775419925883, '10-12-1': 99.43578384734437, '11-12-0': 99.52230112911855, '10-11-1': 91.65229424290665, '11-11-0': 91.09229962286102, '11-12-1': 99.46061735587043, '12-11-1': 86.85211109190277, '11-11-1': 85.23508078228902, '12-12-1': 99.41524981552823, '8-12-1': 99.30424204388716, '12-10-0': 68.72626397157671, '11-10-0': 38.07537838068837, '9-12-1': 99.25545165442756, '10-12-0': 99.50611431118361, '12-9-1': 0.0, '11-10-1': 0.0, '12-11-0': 90.9947995169548, '11-9-1': 0.0, '11-9-0': 39.20553851252433, '12-12-0': 99.50935143662483, '12-10-1': 0.0, '12-9-0': 44.84778420134121, '12-6-1': 0.0, '12-6-0': 8.835091514946853, '11-6-1': 0.0, '11-6-0': 10.089519811890417, '10-13-0': 99.65140009765867, '9-13-1': 99.62206243196255, '8-13-1': 99.60009184927745, '11-13-1': 99.6386015403374, '0-12-0': 99.18098919386358, '0-12-1': 98.5311635248526, '0-11-1': 80.28368513741793, '0-9-1': 0.5484109533640118, '0-10-0': 20.655960221387605, '0-9-0': 0.8593306999862539, '0-6-0': 0.0, '0-6-1': 0.1962689794643049, '11-13-0': 99.6759253273561, '8-13-0': 97.94321510139717, '9-13-0': 99.62507356876439, '12-13-1': 99.5978203635683, '10-13-1': 99.64478622087907, '8-9-1': 0.0, '12-13-0': 99.27005064433746, '0-13-0': 13.740551716889973, '0-13-1': 1.1310141633516824}
+
+plotQTable(qTable_long_20_34, stateGrid_long_20, name="figs/qtable_long_20_34.pdf")
+
+
+
+qTable_long_20_48 = {'8-11-0': 92.49562653394021, '9-11-0': 92.81913027964097, '9-11-1': 90.45763565998574, '10-11-1': 91.4639675229146, '10-10-0': 67.68598891641213, '9-10-1': 0.0, '8-11-1': 85.20937417307141, '8-10-0': 59.60635824567348, '9-10-0': 69.04898909242529, '10-9-1': 0.0, '10-9-0': 65.73592712522839, '10-6-0': 48.143689354216754, '10-10-1': 0.0, '10-11-0': 93.19987538918963, '9-9-1': 0.0, '8-10-1': 0.0, '9-6-1': 0.0, '9-6-0': 32.41762695410877, '9-9-0': 38.50705789024845, '9-12-0': 99.56791643416996, '8-12-0': 99.56045415054533, '10-12-0': 99.57783319817837, '10-12-1': 99.52111575966653, '9-12-1': 99.3835694345301, '11-12-0': 99.60742478575276, '11-12-1': 99.55696268193981, '12-12-0': 99.58842550471323, '11-13-1': 99.79219903302155, '10-13-0': 99.80796025136512, '9-13-0': 99.80721772869985, '8-13-1': 99.51435273126907, '12-13-0': 99.55201709291869, '12-12-1': 99.45590141965593, '0-12-0': 99.0109786845559, '0-12-1': 98.62315606424366, '0-11-1': 78.48456558852226, '0-10-1': 16.93146223423476, '0-9-1': 1.0454938171558568, '10-6-1': 0.0, '8-9-0': 12.215145552622813, '8-6-1': 0.0, '8-9-1': 0.0, '8-12-1': 99.41357370325292, '9-13-1': 99.76939582657899, '10-13-1': 99.78472256107946, '0-11-0': 79.82002830857098, '8-6-0': 3.678187275091761, '11-13-0': 99.82060974474197, '11-11-1': 84.1621732105587, '12-13-1': 99.76984354859685, '11-10-1': 0.0, '0-6-1': 0.43238423045932345, '0-10-0': 16.853720329534706, '11-11-0': 89.40247474885942, '11-10-0': 62.549233627416896, '0-6-0': 0.0, '0-9-0': 0.6751675709286193, '8-13-0': 99.80328710263623, '12-11-1': 75.73930091504137, '12-10-1': 0.0, '11-9-1': 0.0, '11-9-0': 56.86760325526027, '11-6-0': 24.98400878256277, '12-10-0': 52.956727229815996, '12-11-0': 15.89918680780482, '12-9-0': 5.034236188519202, '12-9-1': 0.0, '0-13-1': 33.12500349925386, '0-13-0': 1.0861370699082806, '12-6-0': 1.5879540261793572}
+
+plotQTable(qTable_long_20_48, stateGrid_long_20, name="figs/qtable_long_20_48.pdf")
+
+
+filePattern = "runs/longevity_20b/*.txt"
+dfTuples = processEpisodeLogs(filePattern, max=20000)
+
+dfs = [tup[0] for tup in dfTuples]
+
+df = dfs[0]
+
+df['reward'].count()
+
+rewPlot = plotTrainingRewards(dfs, "figs/long_20b_train")
+
+long_run = "runs/longevity_20/longevity_20_48.txt"
+dfRun2 = processRunLog(long_run, noTraining=False)
+
+long_plot = plotRun(dfRun2, "figs/long_20_48")
+
+
+
+# Classic examples
 
 qTable_cartpole = {'5-5-5-4-0': 65.79490669031206, '5-4-5-5-1': 64.57569278848801, '5-5-5-5-1': 68.49154571786907, '5-5-5-4-1': 67.78739136587991, '5-5-4-4-1': 56.32032629459533, '5-5-4-4-0': 60.351318229349104, '5-5-3-4-1': 26.412916541887174, '5-5-3-4-0': 46.137147703313836, '5-4-4-5-0': 72.06071849192973, '5-4-4-5-1': 72.11543487449585, '4-4-5-5-0': 67.83058928464905, '4-4-5-5-1': 76.66090494844029, '4-5-5-5-1': 76.06487578430338, '4-5-5-4-0': 76.33710584431064, '4-5-5-4-1': 74.80620239157572, '4-5-5-5-0': 75.60527941838072, '4-4-6-5-0': 39.83443593592824, '4-4-6-5-1': 75.77655006878584, '5-5-4-5-0': 73.95532194368253, '5-4-5-5-0': 60.52180088641191, '4-4-4-5-0': 77.0086911880735, '4-4-4-5-1': 73.40541594237541, '4-4-5-4-1': 76.90526572006586, '4-5-4-4-1': 58.03854228502024, '5-4-4-4-1': 76.58156035541451, '4-4-5-4-0': 77.07703652143826, '4-4-4-4-0': 72.71897012996415, '4-5-4-5-1': 66.87072833790249, '4-5-4-4-0': 71.12586244934516, '4-5-6-5-0': 66.89856933267598, '5-5-5-5-0': 68.06105097418555, '5-4-6-5-1': 43.00838649478901, '5-5-6-5-0': 46.83489408845276, '5-4-6-5-0': 29.249089041239273, '5-4-5-4-1': 82.10537185010458, '4-5-6-4-1': 76.47937167101995, '4-5-6-5-1': 77.42371738828543, '4-5-6-4-0': 72.99033204637685, '5-5-6-5-1': 67.83226450857303, '5-4-4-4-0': 76.83772635801124, '4-5-3-4-0': 43.199314383183214, '4-5-3-4-1': 33.62985051262434, '5-4-3-4-1': 64.73454521766631, '5-4-3-4-0': 83.12305595819369, '5-4-3-5-0': 77.86899659168468, '4-4-3-5-0': 75.98653411722296, '4-4-3-5-1': 60.96725461273007, '4-4-4-4-1': 69.41254547511306, '4-4-3-4-1': 50.64212968220821, '4-4-3-4-0': 62.03932900328076, '5-4-5-4-0': 65.00642910135853, '5-4-3-5-1': 71.02257203656347, '5-5-6-4-1': 70.50523002146409, '5-5-6-4-0': 64.90548269885909, '5-5-4-5-1': 73.37858483628298, '4-5-4-5-0': 77.8673975515054, '5-5-3-5-0': 82.45839347217455, '6-5-4-4-0': 27.795285427749988, '6-5-3-4-0': 28.66777234182507, '6-5-3-5-1': 26.30055116826335, '6-5-3-4-1': 16.693431314178405, '4-4-6-4-0': 67.59513442199535, '5-5-3-5-1': 67.09515847301057, '6-5-6-4-0': 26.022973646916576, '6-5-6-5-0': 18.228118807338774, '6-5-6-5-1': 28.610263209067483, '6-5-5-4-0': 23.615101321475862, '6-5-5-4-1': 29.62433480415893, '6-5-4-4-1': 19.53766386458999, '6-5-3-5-0': 33.43744281453817, '6-5-4-5-0': 31.27993374862174, '6-5-4-5-1': 25.551840889590054, '6-4-5-5-0': 6.516933012471345, '6-4-6-5-0': 2.1531633236487546, '6-5-5-5-1': 30.04097524280532, '6-5-5-5-0': 26.80842708610143, '3-4-3-4-0': 24.32064801155313, '3-4-4-4-0': 27.808597167353916, '3-4-4-5-1': 27.712150555576518, '3-4-4-4-1': 24.772981154194735, '3-4-3-5-1': 22.059325391412795, '3-4-3-4-1': 16.46366089493981, '4-4-6-4-1': 83.97352476432845, '3-4-4-5-0': 24.584782721014022, '6-4-4-5-0': 8.54251041118917, '6-4-4-5-1': 31.4440417651805, '6-4-6-5-1': 14.91540432742624, '6-5-6-4-1': 29.44482970314337, '6-4-5-5-1': 28.932727160593593, '3-4-5-5-0': 12.52513350815326, '3-4-5-5-1': 12.463640200981548, '3-4-5-4-0': 20.679388743564207, '3-4-5-4-1': 25.97113176881964, '3-4-3-5-0': 27.405930935077382, '6-4-3-5-0': 23.89305078223371, '3-4-6-5-0': 3.7077858804422483, '3-4-6-5-1': 3.283656251135147, '3-5-3-4-1': 2.051892289417734, '3-5-4-4-0': 18.66532595315425, '5-4-6-4-0': 7.821258581459492, '3-4-6-4-0': 2.6716895481300553, '3-5-3-4-0': 0.403687570066275, '6-4-4-4-0': 4.332397326693339, '6-4-4-4-1': 2.2499377784411747, '3-5-5-4-0': 20.29009808436112, '4-5-3-5-0': 20.302462038711976, '3-5-5-5-0': 4.589863601732336}
 
