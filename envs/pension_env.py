@@ -34,8 +34,8 @@ class PensionEnv(core.Env):
         self.viewer = None
         self.logger = None  # sys.stderr
         # observation: [Human's age, Company's funds, reputation, number of clients]
-        high = np.array([100, 1000000, 0, 50])
-        low = np.array([0, -1000000, -5000, 0])
+        high = np.array([100, 1000000])#, 0, 50])
+        low = np.array([0, -1000000])#, -5000, 0])
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
@@ -333,16 +333,16 @@ class PensionEnv(core.Env):
                 angryEnough = random.random() > norm.cdf(p.company.reputation, loc=-1500, scale=500)
                 leaving |= self.age < 67 and angryEnough
                 reputation = p.company.reputation
-                if leaving:
+                #if leaving:
                     # Adjusting the regulations
-                    contribTotal = (self.age - 20) * 1500
-                    refund = 0.75 * contribTotal
+                    #contribTotal = (self.age - 20) * 1500
+                    #refund = 0.75 * contribTotal
                     # print("HUMAN IS LEAVING, age", self.age, ", happiness", self.happiness,
                     #         ", contribTotal", contribTotal, ", refund", refund,
                     #         ", c.funds before", p.company.funds,
                     #         ", h.funds before", self.funds)
-                    p.company.funds -= refund
-                    self.funds += refund
+                    #p.company.funds -= refund
+                    #self.funds += refund
                     # print("after: c.funds", p.company.funds, ", h.funds", self.funds)
 
             self.funds -= self.livingExpenses
