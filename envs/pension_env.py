@@ -39,6 +39,7 @@ class PensionEnv(core.Env):
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
+        self._cachedNewCdf = {}
         self.seed()
 
     def seed(self, seed=None):
@@ -57,6 +58,15 @@ class PensionEnv(core.Env):
         self.currHumanIdx = 0
         self.year = 0
         return self._get_ob()
+
+    def _newCdf(self, rep):
+        # return norm.cdf(int(rep), loc=0, scale=1500)
+        intVal = int(rep)
+        if intVal in self._cachedNewCdf:
+            return self._cachedNewCdf[intVal]
+        else:
+            self._cachedNewCdf[intVal] = norm.cdf(intVal, loc=0, scale=1500)
+            return self._cachedNewCdf[intVal]
 
     def step(self, action):
         """
@@ -127,7 +137,7 @@ class PensionEnv(core.Env):
 
         if yearChanged:  # Human(s) decide whether to become clients
             # 50% chance for new customer on reputation 0
-            getsNewCustomer = random.random() < norm.cdf(self.companies[0].reputation, loc=0, scale=1500)
+            getsNewCustomer = random.random() < self._newCdf(self.companies[0].reputation)
             if getsNewCustomer:
                 # reward += 10
                 self.humans.append(self.Client(self))
@@ -272,8 +282,28 @@ class PensionEnv(core.Env):
             self.expectation = 0.6 * self.income
             self.happiness = 0
             self.active = True
+            self._cachedLeaveCdf = {}
+            self._cachedDeathCdf = {}
             c = self.findCompany()
             self.orderProduct(c)
+
+        def _leaveCdf(self, rep):
+            # return norm.cdf(int(rep), loc=-1500, scale=500)
+            intVal = int(rep)
+            if intVal in self._cachedLeaveCdf:
+                return self._cachedLeaveCdf[intVal]
+            else:
+                self._cachedLeaveCdf[intVal] = norm.cdf(intVal, loc=-1500, scale=500)
+                return self._cachedLeaveCdf[intVal]
+
+        def _deathCdf(self, age):
+            # return norm.cdf(int(age), loc=85, scale=10)
+            intVal = int(age)
+            if intVal in self._cachedDeathCdf:
+                return self._cachedDeathCdf[intVal]
+            else:
+                self._cachedDeathCdf[intVal] = norm.cdf(intVal, loc=85, scale=10)
+                return self._cachedDeathCdf[intVal]
 
         def findCompany(self):
             reputations = [c.reputation for c in self.env.companies]
@@ -330,7 +360,7 @@ class PensionEnv(core.Env):
             for p in self.products:
                 if (self.happiness < 0):  # Note: can only happen if >=67
                     p.company.damageReputation(self.happiness)
-                angryEnough = random.random() > norm.cdf(p.company.reputation, loc=-1500, scale=500)
+                angryEnough = random.random() > self._leaveCdf(p.company.reputation)
                 leaving |= self.age < 67 and angryEnough
                 reputation = p.company.reputation
                 if leaving:
@@ -348,7 +378,7 @@ class PensionEnv(core.Env):
             self.funds -= self.livingExpenses
 
             # print("Happiness", self.happiness, self.age)
-            died = random.random() < norm.cdf(self.age, loc=85, scale=10)  # bad approx
+            died = random.random() < self._deathCdf(self.age)  # bad approx
             self.active = not (leaving or died)
             if not self.active and self.env.logger:
                 what = "Goodbye" if leaving else "RIP"
