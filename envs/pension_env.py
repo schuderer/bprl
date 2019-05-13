@@ -6,6 +6,13 @@ from scipy.stats import norm
 import random
 
 
+YEARS_IN_EPISODE = 750
+MEAN_STOCKS_RETURN = 8.5/100  # s&p500
+STOCKS_VOLATILITY = 16.5/100  # volatility
+MEAN_BONDS_RETURN = 3.0/100  # short-term bonds; https://www.investmentnews.com/article/20180223/BLOG09/180229959/investing-in-bond-funds-when-interest-rates-rise
+BONDS_VOLATILITY = 5.0/100
+
+
 def softmax(x):  # https://stackoverflow.com/questions/34968722/how-to-implement-the-softmax-function-in-python
     """Compute softmax values for each set of scores in x."""
     e_x = np.exp(x - np.max(x))
@@ -21,8 +28,6 @@ class PensionEnv(core.Env):
     metadata = {
         'render.modes': ['human', 'ascii']  # todo
     }
-
-    YEARS_IN_EPISODE = 750
 
     def __init__(self):
         self.companies = []
@@ -176,7 +181,7 @@ class PensionEnv(core.Env):
         return False  # year didn't change
 
     def _terminal(self):
-        return self.year > self.YEARS_IN_EPISODE or self.companies[0].funds < 0
+        return self.year > YEARS_IN_EPISODE or self.companies[0].funds < 0
 
     def _get_ob(self):
         """
@@ -200,6 +205,8 @@ class PensionEnv(core.Env):
 
         def __init__(self):
             self.funds = 20000
+            self.stocksAllocation = 0.7
+            # self.bondsAllocation = 1 - self.stocksAllocation
             self.clients = []
             self.reputation = 0
 
@@ -213,11 +220,25 @@ class PensionEnv(core.Env):
             return PensionEnv.PensionProduct(self)
 
         def doCompanyThings(self):
+            # Spend cost to keep doors open
+            self.funds -= 2000
+
+            # Calculate investment returns
+            # Geometric Brownian Motion (Gaussian Process), nicely explained here:
+            # https://newportquant.com/price-simulation-with-geometric-brownian-motion/
+            # Assuming monthly (free) re-weighing
+            stocksValue = self.funds * self.stocksAllocation
+            bondsValue = self.funds - stocksValue
+            stocksReturns = stocksValue * np.random.normal(loc=MEAN_STOCKS_RETURN, scale=STOCKS_VOLATILITY)
+            bondsReturns = bondsValue * np.random.normal(loc=MEAN_BONDS_RETURN, scale=BONDS_VOLATILITY)
+            # print("funds",self.funds,"stocks",stocksValue,"stockReturns",stocksReturns,"bonds",bondsValue,"bondsReturns",bondsReturns)
+            self.funds += stocksReturns + bondsReturns
+
+            # Correct reputation
             if self.reputation < 0:
                 self.reputation += 20
             if self.reputation > 0:
                 self.reputation = 0
-            self.funds -= 2000  # cost to keep doors open
 
         def damageReputation(self, damage):
             self.reputation += damage
