@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-episodePattern = re.compile(r'^Episode ([0-9.-]+) finished after ([0-9.-]+) timesteps with cumulative reward ([0-9.-]+)')
-episodeInfoPattern = re.compile(r'^(?:year ([0-9.-]+), )?q table size ([0-9.-]+), epsilon ([0-9.-]+), alpha ([0-9.-]+), #humans ([0-9.-]+), reputation ([0-9.-]+)$')
-stopEpPattern = re.compile(r'^Average reward last 100 episodes')
-individualRunPattern = re.compile(r'^year ([0-9.-]+) funds ([0-9.-e+]+) reputation ([0-9.-]+) humans ([0-9.-]+) meanAge ([0-9.-]+) currAge ([0-9.-]+) hFunds ([0-9.-]+) hID ([0-9.-]+) stateActionkey')
+episodePattern = re.compile(r'Episode ([0-9.-]+) finished after ([0-9.-]+) timesteps with cumulative reward ([0-9.-]+)')
+episodeInfoPattern = re.compile(r'(?:year ([0-9.-]+), )?q table size ([0-9.-]+), epsilon ([0-9.-]+), alpha ([0-9.-]+), #humans ([0-9.-]+), reputation ([0-9.-]+)$')
+stopEpPattern = re.compile(r'Average reward last 100 episodes')
+individualRunPattern = re.compile(r'year ([0-9.-]+) funds ([0-9.-e+]+) reputation ([0-9.-]+) humans ([0-9.-]+) meanAge ([0-9.-]+) currAge ([0-9.-]+) hFunds ([0-9.-]+) hID ([0-9.-]+) stateActionkey')
 
 
 def processEpisodeLogs(filePattern, max=-1):
