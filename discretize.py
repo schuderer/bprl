@@ -1,6 +1,7 @@
 import numpy as np
 from math import sqrt
 
+
 class Discretizer:
     # adapted from https://github.com/udacity/deep-reinforcement-learning/blob/
     #                       master/discretization/Discretization_Solution.ipynb

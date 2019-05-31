@@ -1,11 +1,11 @@
 import numpy as np
 from gym import core, spaces
 from gym.utils import seeding
-from scipy.stats import norm
+import utils
 import logging
 
 # logging.debug("some invisible debug message to get logging to set up implicit stuff. whatever.")
-logging.basicConfig()
+# logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 YEARS_IN_EPISODE = 750
@@ -53,7 +53,7 @@ class PensionEnv(core.Env):
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
-        self._cached_new_cdf = {}
+        # self._cached_new_cdf = {}
         self.seed()
 
     def seed(self, seed=None):
@@ -75,13 +75,19 @@ class PensionEnv(core.Env):
         return self._get_observation()
 
     def _new_cdf(self, rep):
+        # lru_cached:
+        return utils.cached_cdf(int(rep/100)*100, 0, 1500)
+
+        # uncached
         # return norm.cdf(int(rep), loc=0, scale=1500)
-        int_val = int(rep)
-        if int_val in self._cached_new_cdf:
-            return self._cached_new_cdf[int_val]
-        else:
-            self._cached_new_cdf[int_val] = norm.cdf(int_val, loc=0, scale=1500)
-            return self._cached_new_cdf[int_val]
+
+        # self-cached
+        # int_val = int(rep)
+        # if int_val in self._cached_new_cdf:
+        #     return self._cached_new_cdf[int_val]
+        # else:
+        #     self._cached_new_cdf[int_val] = norm.cdf(int_val, loc=0, scale=1500)
+        #     return self._cached_new_cdf[int_val]
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of episode
@@ -309,29 +315,41 @@ class Client(Seq):
         self.expectation = 0.6 * self.income
         self.happiness = 0
         self.active = True
-        self._cached_leave_cdf = {}
-        self._cached_death_cdf = {}
+        # self._cached_leave_cdf = {}
+        # self._cached_death_cdf = {}
         c = self._find_company()
         self.become_client_of(c)
 
 
     def _leave_cdf(self, rep):
+        # lru-cached:
+        return utils.cached_cdf(int(rep/20)*20, -1500, 500)
+        # uncached
         # return norm.cdf(int(rep), loc=-1500, scale=500)
-        int_val = int(rep)
-        if int_val in self._cached_leave_cdf:
-            return self._cached_leave_cdf[int_val]
-        else:
-            self._cached_leave_cdf[int_val] = norm.cdf(int_val, loc=-1500, scale=500)
-            return self._cached_leave_cdf[int_val]
+
+        # self-cached
+        # int_val = int(rep)
+        # if int_val in self._cached_leave_cdf:
+        #     return self._cached_leave_cdf[int_val]
+        # else:
+        #     self._cached_leave_cdf[int_val] = norm.cdf(int_val, loc=-1500, scale=500)
+        #     return self._cached_leave_cdf[int_val]
+
 
     def _death_cdf(self, age):
+        # lru-cached:
+        return utils.cached_cdf(int(age/2)*2, 85, 10)
+
+        # uncached
         # return norm.cdf(int(age), loc=85, scale=10)
-        int_val = int(age)
-        if int_val in self._cached_death_cdf:
-            return self._cached_death_cdf[int_val]
-        else:
-            self._cached_death_cdf[int_val] = norm.cdf(int_val, loc=85, scale=10)
-            return self._cached_death_cdf[int_val]
+
+        # self-cached
+        # int_val = int(age)
+        # if int_val in self._cached_death_cdf:
+        #     return self._cached_death_cdf[int_val]
+        # else:
+        #     self._cached_death_cdf[int_val] = norm.cdf(int_val, loc=85, scale=10)
+        #     return self._cached_death_cdf[int_val]
 
     def _find_company(self):
         global np_random
@@ -398,7 +416,8 @@ class Client(Seq):
             company = self.pension_fund
             if (self.happiness < 0):  # Note: can only happen if >=67
                 company.damage_reputation(self.happiness)
-            angry_enough = np_random.uniform() > self._leave_cdf(company.reputation)
+            _angry_threshold = self._leave_cdf(company.reputation)
+            angry_enough = np_random.uniform() > _angry_threshold
             leaving |= self.age < 67 and angry_enough
             # if leaving:
             #     Adjusting the regulations
@@ -414,7 +433,8 @@ class Client(Seq):
 
         self.funds -= self.living_expenses
 
-        died = np_random.uniform() < self._death_cdf(self.age)  # bad approx
+        _death_threshold = self._death_cdf(self.age)
+        died = np_random.uniform() < _death_threshold  # bad approx
 
         if died:
             self._die()
