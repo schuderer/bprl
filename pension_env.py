@@ -53,6 +53,7 @@ class PensionEnv(core.Env):
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         # self.action_space = spaces.Box(low=-100000, high=100000, shape=(1,), dtype=np.float32)
         self.action_space = spaces.Discrete(2)
+        self.investing = True
         # self._cached_new_cdf = {}
         self.seed()
 
@@ -68,7 +69,7 @@ class PensionEnv(core.Env):
             observation: the initial observation of the space.
             (Initial reward is assumed to be 0.)
         """
-        self.companies = [InsuranceCompany()]
+        self.companies = [InsuranceCompany(investing=self.investing)]
         self.humans = [Client(self)]
         self._curr_human_idx = 0
         self.year = 0
@@ -230,7 +231,8 @@ class PensionEnv(core.Env):
 class InsuranceCompany:
     """The complete company"""
 
-    def __init__(self):
+    def __init__(self, investing=True):
+        self.investing = investing
         self.funds = 20000
         self.stocksAllocation = 0.7
         # self.bondsAllocation = 1 - self.stocksAllocation
@@ -247,17 +249,18 @@ class InsuranceCompany:
         # Spend cost to keep doors open
         self.funds -= 2000
 
-        # Calculate investment returns
-        # Geometric Brownian Motion (Gaussian Process), nicely explained here:
-        # https://newportquant.com/price-simulation-with-geometric-brownian-motion/
-        # Assuming monthly (free) re-weighing
-        global np_random
-        stocksValue = self.funds * self.stocksAllocation
-        bondsValue = self.funds - stocksValue
-        stocksReturns = stocksValue * np_random.normal(loc=MEAN_STOCKS_RETURN, scale=STOCKS_VOLATILITY)
-        bondsReturns = bondsValue * np_random.normal(loc=MEAN_BONDS_RETURN, scale=BONDS_VOLATILITY)
-        # print('funds',self.funds,'stocks',stocksValue,'stockReturns',stocksReturns,'bonds',bondsValue,'bondsReturns',bondsReturns)
-        self.funds += stocksReturns + bondsReturns
+        if self.investing:
+            # Calculate investment returns
+            # Geometric Brownian Motion (Gaussian Process), nicely explained here:
+            # https://newportquant.com/price-simulation-with-geometric-brownian-motion/
+            # Assuming monthly (free) re-weighing
+            global np_random
+            stocksValue = self.funds * self.stocksAllocation
+            bondsValue = self.funds - stocksValue
+            stocksReturns = stocksValue * np_random.normal(loc=MEAN_STOCKS_RETURN, scale=STOCKS_VOLATILITY)
+            bondsReturns = bondsValue * np_random.normal(loc=MEAN_BONDS_RETURN, scale=BONDS_VOLATILITY)
+            # print('funds',self.funds,'stocks',stocksValue,'stockReturns',stocksReturns,'bonds',bondsValue,'bondsReturns',bondsReturns)
+            self.funds += stocksReturns + bondsReturns
 
         # Correct reputation
         if self.reputation < 0:

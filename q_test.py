@@ -277,6 +277,13 @@ logger.info('###### LEARNING: ######')
 logger.setLevel(logging.WARNING)
 penv.logger.setLevel(logging.WARNING)
 
+env.investing = False
+env.seed(1984)  # separate seed for environment
+
+# seeds for agent
+random.seed(1984)
+np.random.seed(1984)
+
 qTable = q_learn(env,
                  alpha_min=0.01,     # temperature/learning rate, was 0.01
                  alpha_decay=1,      # reduction factor per episode, was 0.003
