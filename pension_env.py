@@ -121,7 +121,7 @@ class PensionEnv(core.Env):
             curr_human.live_one_year()
 
         # remove_the_dead() # disabled to keep humans from changing list indices
-
+ 
         # Determine current observation for returning
         # WARNING: THIS SHOULD HAPPEN HERE, BUT AS WE'RE VISITING A DIFFERENT
         # CLIENT EACH TIME, THE LAST OBSERVATION IS ABOUT A DIFFERENT CLIENT
