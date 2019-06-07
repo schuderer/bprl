@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+ipykernel = "*"
+python-language-server = {extras = ["all"],version = "*"}
+
+[packages]
+numpy = "*"
+gym = "*"
+pandas = "*"
+matplotlib = "*"
+seaborn = "*"
+line-profiler = "*"
+
+[requires]
+python_version = "3.7"
