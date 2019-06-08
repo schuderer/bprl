@@ -51,8 +51,9 @@ try:
         return inner
 
 except ImportError:
+    print("Could not import line profiler. Accidentally left in production code?")
+
     def do_profile(follow=[]):
-        'Helpful if you accidentally leave in production!'
         def inner(func):
             def nothing(*args, **kwargs):
                 return func(*args, **kwargs)
