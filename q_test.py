@@ -14,20 +14,20 @@ logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
-# env = penv.PensionEnv()
+env = penv.PensionEnv()
 # env = gym.make('Pendulum-v0')
 # env = gym.make('CartPole-v0')
-# env = gym.make('FrozenLake-v0')
 # env = gym.make('MountainCar-v0')
-from gym.envs.registration import register
-register(
-    id='FrozenLakeNotSlippery-v0',
-    entry_point='gym.envs.toy_text:FrozenLakeEnv',
-    kwargs={'map_name': '4x4', 'is_slippery': False},
-    max_episode_steps=100,
-    reward_threshold=0.78, # optimum = .8196
-)
-env = gym.make('FrozenLakeNotSlippery-v0')
+# env = gym.make('FrozenLake-v0')
+# from gym.envs.registration import register
+# register(
+#     id='FrozenLakeNotSlippery-v0',
+#     entry_point='gym.envs.toy_text:FrozenLakeEnv',
+#     kwargs={'map_name': '4x4', 'is_slippery': False},
+#     max_episode_steps=100,
+#     reward_threshold=0.78, # optimum = .8196
+# )
+# env = gym.make('FrozenLakeNotSlippery-v0')
 
 # longevity
 num_bins = 12
@@ -196,7 +196,7 @@ def q_learn(env,
 
             # Select action according to epsilon-greedy policy
             if random.random() > epsilon:  # greedy/argmax
-                # TODO: this might be the error source
+                # Would be faster, but would ignore last update
                 # actionIdx = prev_best_action
                 actionIdx, _ = maxQ(prev_state_key, q_table)
                 logger.debug("greedy action: %s", actionIdx)
@@ -211,7 +211,7 @@ def q_learn(env,
 
             curr_obs = np.array(observation) if discreteStates\
                        else state_discretizer.discretize(observation)
-            curr_state_key = stateKeyFor(prev_obs)
+            curr_state_key = stateKeyFor(curr_obs)
             curr_best_action, curr_best_value = maxQ(curr_state_key, q_table)
 
             logger.debug('maxQ(curr_state_key, q_table): (%s, %s)',
@@ -292,7 +292,7 @@ def q_learn(env,
 
 logger.info('###### LEARNING: ######')
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
 penv.logger.setLevel(logging.WARNING)
 
 env.investing = False
@@ -305,17 +305,27 @@ random.seed(seed)
 np.random.seed(seed)
 
 qTable = q_learn(env,
-                 alpha_min=0.1,     # temperature/learning rate, was 0.01
+                 alpha_min=0.01,     # temperature/learning rate, was 0.01
                  alpha_decay=1,      # reduction factor per episode, was 1
                  gamma=0.99,         # discount factor, was 0.99
-                 epsilon_min=0.25,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
+                 epsilon_min=0.03,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
                  epsilon_decay=1,    # reduction per episode, was 1
-                 episodes=1000,     # was: 10000
-                 max_steps=10000,     # abort episode after this number of steps, was: 20000
+                 episodes=15000,     # was: 15000
+                 max_steps=20000,     # abort episode after this number of steps, was: 20000
                  q_table={},
                  average_rewards=False)
 
-exit()
+
+def print_q2(qTable):
+    for s in range(statesDisc.n):
+        s = np.array(s)
+        print([qTable.get(stateKeyFor(s) + "-" + str(a), 0) for a in range(actionsDisc.n)])
+
+
+# print_q2(qTable)
+#
+#
+# exit()
 
 # qTable_long = {'8-11-0': 94.85750359596473, '9-11-1': 93.40323065017274, '8-10-0': 54.05487303099865, '9-10-0': 69.4452590372413, '9-6-0': 28.350606637340828, '10-10-1': 0.0, '8-11-1': 88.69965983586648, '9-10-1': 0.0, '9-9-0': 43.48613366033944, '9-11-0': 95.0580167838315, '8-6-0': 2.9663781106297673, '8-10-1': 0.0, '0-10-1': 15.319100097519744, '10-9-1': 0.0, '8-9-1': 0.0, '10-11-1': 95.5552419744198, '0-11-0': 74.40527194908847, '9-6-1': 0.0, '10-10-0': 77.7631753592817, '9-9-1': 0.0, '8-9-0': 10.466543791570732, '10-11-0': 96.16730642224013, '10-9-0': 52.50022631368486, '10-6-1': 0.0, '10-6-0': 47.267848204387754, '8-12-1': 96.89479613623092, '9-12-0': 97.69003889839313, '10-12-1': 97.72497266156432, '8-12-0': 98.29330602203332, '9-12-1': 97.66739364403784, '11-11-0': 97.39174531384064, '11-10-0': 90.39064853287226, '11-12-0': 98.44059070537676, '11-11-1': 96.537239260211, '12-12-1': 98.20931866611063, '12-11-1': 95.9104943675021, '11-9-1': 0.0, '10-12-0': 98.30945416910251, '11-10-1': 0.0, '12-10-1': 0.0, '11-12-1': 98.08502073963916, '12-11-0': 96.45089471340923, '11-6-0': 25.099394364670093, '12-10-0': 91.85700280656347, '12-9-0': 49.73730421259588, '12-6-0': 24.967896842942707, '12-12-0': 97.48316451537686, '11-9-0': 49.55524985337189, '12-9-1': 0.0, '0-11-1': 74.09507814228127, '0-6-1': 0.0, '0-9-1': 0.3472440423522913, '0-9-0': 1.0870036388169635, '0-10-0': 13.289073071107142, '0-6-0': 0.17096349741069655, '0-12-1': 81.01054815466709, '8-6-1': 0.0, '10-13-1': 62.000330888305314, '9-13-1': 65.37576691088769, '8-13-1': 21.784954532010495, '11-13-0': 0.7057965640065662, '10-13-0': 0.9732023924806424, '0-12-0': 19.786256147889635, '11-13-1': 34.36227034336228, '9-13-0': 0.43486906879583603, '8-13-0': 0.01, '12-13-1': 0.9807091303179641}
 
@@ -337,7 +347,7 @@ logger.setLevel(logging.INFO)
 qTable2 = q_learn(env,
                  alpha_min=0,       # temperature/learning rate
                  alpha_decay=1,     # reduction factor per episode, was 0.003
-                 gamma=0,           # discount factor, was 0.99
+                 gamma=0.99,        # discount factor, was 0.99
                  epsilon_min=0.0,   # minimal epsilon (exploration rate for e-greedy policy)
                  epsilon_decay=1,   # reduction factor per episode, was 0.003
                  episodes=3,
@@ -346,13 +356,7 @@ qTable2 = q_learn(env,
                  average_rewards=False)
 
 
-def print_q2(qTable):
-    for s in range(statesDisc.n):
-        s = np.array(s)
-        print([qTable.get(stateKeyFor(s) + "-" + str(a), 0) for a in range(actionsDisc.n)])
-
-
-print_q2(qTable)
+# print_q2(qTable)
 
 
 # qTable = q_learn(env,
