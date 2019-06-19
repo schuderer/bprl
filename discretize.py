@@ -1,26 +1,59 @@
-import numpy as np
 from math import sqrt
+import numpy as np
+import gym
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Discretizer:
+    """Ensures that a (state or action) gym space is discrete.
+
+    If the space is discrete already, discretize/undiscretize essentially
+    just return the values unchanged (ensuring np.arrays).
+
+    If the space is of type Box (continuous), it is discretized according
+    to the parameters provided when creating this object.
+    """
     # adapted from https://github.com/udacity/deep-reinforcement-learning/blob/
     #                       master/discretization/Discretization_Solution.ipynb
 
-    def __init__(self, lows, highs, bins, log=False):
-        self.grid = self.__create_grid(lows, highs, bins, log)
+    def __init__(self, env_space, num_bins, log_bins):
+        if type(env_space) is gym.spaces.box.Box:
+            logger.warning('- low: %s', env_space.low)
+            logger.warning('- high: %s', env_space.high)
+            bins = np.repeat([num_bins], len(env_space.low))
+            self.grid = self._create_grid(env_space.low,
+                                          env_space.high,
+                                          bins,
+                                          log=log_bins)
+            logger.warning('grid %s', self.grid)
+            self.space = gym.spaces.discrete.Discrete(self.grid.size)
+        elif type(env_space) is gym.spaces.discrete.Discrete:
+            self.grid = None
+            self.space = env_space
+        else:
+            raise NotImplementedError('Can only work with Discrete or Box type state spaces.')
 
     def discretize(self, vals):
-        return np.array(list(int(np.digitize(s, g, right=True))
-                        for s, g in zip(vals, self.grid)))
+        if self.grid is None:
+            return np.array(vals)
+        else:
+            return np.array(list(int(np.digitize(s, g, right=True))
+                        for s, g in zip(np.array(vals), self.grid)))
 
     def undiscretize(self, indices):
-        return np.array(list(g[min([int(i), len(g)-1])] for i, g in zip(indices, self.grid)))
+        if self.grid is None:
+            return np.array(indices)
+        else:
+            return np.array(list(g[min([int(i), len(g)-1])]
+                        for i, g in zip(np.array(indices), self.grid)))
 
     @staticmethod
-    def __create_grid(low, high, bins, log=False):
+    def _create_grid(low, high, bins, log):
         space_func = np.linspace if not log else np.geomspace
         if log:
-            print("creating logarithmic grid")
+            logger.warning("creating logarithmic grid")
             low_signs = np.sign(low)
             high_signs = np.sign(high)
             same_sign = (low_signs == high_signs) \
@@ -40,7 +73,7 @@ class Discretizer:
                     # print(low[dim], high[dim], print(10**float(min(mag-sqrt(bins[dim])/2, 0)))
                     grid[dim] = space_func(low[dim], high[dim], bins[dim] + 1)
                 else:
-                    print("dimension {} crosses zero".format(dim))
+                    logger.warning("dimension {} crosses zero".format(dim))
                     l1 = low[dim]
                     h2 = high[dim]
                     lh_range = h2 - l1
@@ -58,9 +91,9 @@ class Discretizer:
         else:
             grid = np.array([space_func(low[dim], high[dim], bins[dim] + 1)
                              for dim in range(len(bins))])
-        print("Grid: [<low>, <high>] / <bins> => <splits>")
+        logger.warning("Grid: [<low>, <high>] / <bins> => <splits>")
         for l, h, b, splits in zip(low, high, bins, grid):
-            print("    [{}, {}] / {} => {}".format(l, h, b, splits))
+            logger.warning("    [{}, {}] / {} => {}".format(l, h, b, splits))
         return grid
 
 
