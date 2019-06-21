@@ -4,20 +4,60 @@ import sys
 import random
 import numpy as np
 import gym
-from utils import LazyStr
-# from utils import do_profile
 import pension_env as penv
-from discretize import Discretizer
+from agent import Agent
 import logging
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
+def learn(agent, episodes, max_steps):
+    overall = 0
+    last_100 = np.zeros((100,))
+    for episode in range(episodes):
+        logger.debug('size of q table: %s', len(agent.q_table.keys()))
+
+        q_table, cumul_reward, num_steps, info = \
+            agent.run_episode(max_steps=max_steps, exploit=False)
+
+        overall += cumul_reward
+        last_100[episode % 100] = cumul_reward
+        logger.warning('Episode %s finished after %s timesteps with cumulative reward %s (last 100 mean = %s)',
+                       episode, num_steps, cumul_reward, last_100.mean())
+        if type(agent.env).__name__ == 'PensionEnv':
+            logger.warning('year %s, q table size %s, epsilon %s, alpha %s, #humans %s, reputation %s',
+                        agent.env.year, len(q_table.keys()),
+                        agent.epsilon, agent.alpha,
+                        len([h for h in agent.env.humans if h.active]),
+                        info['company'].reputation)
+        else:
+            logger.warning('q table size %s, epsilon %s, alpha %s',
+                        len(q_table.keys()), agent.epsilon, agent.alpha)
+
+    logger.warning('Overall cumulative reward: %s', overall/episodes)
+    logger.warning('Average reward last 100 episodes: %s', last_100.mean())
+    return q_table
+
+
+# Run Q-Learning
+
 # env = penv.PensionEnv()
+# num_bins = 12
+# log_bins = True
+
 # env = gym.make('Pendulum-v0')
+# num_bins = 10
+# log_bins = True
+
 # env = gym.make('CartPole-v0')
+# num_bins = 10
+# log_bins = False
+
 env = gym.make('MountainCar-v0')
+num_bins = 20
+log_bins = False
+
 # env = gym.make('FrozenLake-v0')
 # from gym.envs.registration import register
 # register(
@@ -29,254 +69,7 @@ env = gym.make('MountainCar-v0')
 # )
 # env = gym.make('FrozenLakeNotSlippery-v0')
 
-# # longevity
-# num_bins = 12
-# log_bins = True
 
-# cartpole
-# num_bins = 8
-# log_bins = False
-
-# mountaincar
-num_bins = 20
-log_bins = False
-
-
-def create_discretizers(env, num_bins, log_bins):
-    logger.warning({'num_bins': num_bins, 'log_bins': log_bins})
-    logger.warning("Discretize observation_space %s", env.observation_space)
-    state_disc = Discretizer(env.observation_space,
-                         num_bins,
-                         log_bins=log_bins)
-    logger.warning("Discretize action %s", env.action_space)
-    action_disc = Discretizer(env.action_space,
-                          num_bins,
-                          log_bins=log_bins)
-    return state_disc, action_disc
-
-
-# todo make q_learner self-contained!
-state_disc, action_disc = create_discretizers(env, num_bins, log_bins)
-
-
-def stateKeyFor(discreteObs):
-    if discreteObs.shape == ():
-        d_obs = np.reshape(discreteObs, (1,))
-    else:
-        d_obs = discreteObs
-    # slow using timeit():
-    return '-'.join(map(str, d_obs))
-    # 100x faster using timeit(), but only a few percent faster in reality:
-    # return reduce(lambda a, v: str(a) + '-' + str(v), discreteObs)
-
-
-def getQTableDefault():
-    return 0  # -10000000
-    # return random.random()-0.5
-
-
-def getActions(keyStart, qTable):
-    return [qTable.get(keyStart + '-' + str(aIdx), getQTableDefault())
-            for aIdx in range(action_disc.space.n)]
-
-
-def getMaxRandomTieBreak(actions):
-    # twice as fast as
-    # np.random.choice(np.flatnonzero(actions == np.max(actions)))
-    best = []
-    bestActionVal = max(actions)
-    for i, aval in enumerate(actions):
-        if aval == bestActionVal:
-            best.append(i)
-    if len(best) == 1:
-        return best[0]
-    else:
-        return np.random.choice(best)
-
-
-def maxQ(stateKey, qTable):
-    actions = getActions(stateKey, qTable)
-    logger.debug(f"Actions for state {stateKey}: %s", actions)
-    # bestActionIdx = np.argmax(actions)  # tie breaking: first item
-    # tie breaking: random item:
-    bestActionIdx = getMaxRandomTieBreak(actions)
-    # bestActionIdx2 = np.random.choice(np.flatnonzero(actions == np.max(actions)))
-    # if actions[bestActionIdx] != actions[bestActionIdx2]:
-    #     raise ValueError("#### ERROR IN getMaxRandomTieBreak: max values are not the same! ####")
-
-    # logger.debug(f"Best action for state {stateKey}: %s", bestActionIdx)
-    # testMaxQ = maxQ_old(discreteObs, qTable)
-    # if testMaxQ[0] != bestActionIdx or testMaxQ[1] != actions[bestActionIdx]:
-    #     print('WARNING: {} != {} or {} != {}'.format(testMaxQ[0], bestActionIdx, testMaxQ[1], actions[bestActionIdx]))
-    return bestActionIdx, actions[bestActionIdx]
-
-
-def maxQ_old(discreteObs, qTable):
-    if discreteObs.shape == ():
-        discreteObs = np.reshape(discreteObs, (1,))
-    keyStart = stateKeyFor(discreteObs)
-    bestActionIdx = 0
-    highestVal = qTable.get(keyStart + '-' + str(bestActionIdx), getQTableDefault())
-    for aIdx in range(1, action_disc.space.n):  # start at 1 because we already visited 0
-        key = keyStart + '-' + str(aIdx)
-        if key in qTable:
-            val = qTable[key]
-            if val > highestVal:
-                highestVal = val
-                bestActionIdx = aIdx
-            # print('maxQ found something', key, aIdx, val)
-    # if highestVal == -np.inf:
-    #     highestVal = 0.0
-    return bestActionIdx, highestVal
-
-
-def print_q(qTable):
-    for s in range(state_disc.space.n):
-        if state_disc.grid is None:
-            s = np.array(s)
-        else:  # todo
-            # indices = np.unravel_index(range(statesDisc.n), state_grid.shape)
-            s = state_disc.grid[s]
-        logger.info([qTable.get(stateKeyFor(s) + '-' + str(a), getQTableDefault()) for a in range(action_disc.space.n)])
-
-
-# @do_profile(follow=[env.step, penv.Client.live_one_year])
-# @do_profile(follow=[maxQ, getActions, getMaxRandomTieBreak])
-def q_learn(env,
-            alpha_min=0.01,
-            alpha_decay=1,  # default 1 = fixed alpha (alpha_min)
-            gamma=0.99,
-            epsilon_min=0.1,
-            epsilon_decay=1,  # default: 1 = fixed epsilon (epsilon_min)
-            episodes=100,
-            max_steps=1000,
-            q_table={},
-            average_rewards=False):
-    '''Generic Q-Learning algorithm. Returns the Q-Table.'''
-    logger.info(locals())
-    # todo make self-contained
-
-    alpha = 1.0  # initial alpha, will decay
-    epsilon = 1.0  # initial epsilon, will decay
-    overall = 0
-    last_100 = np.zeros((100,))
-    aggr_text = 'average' if average_rewards else 'cumulative'
-    for episode in range(episodes):
-        # decay defore first episode
-        # to make fixed (min_)alpha/epsilon possible with *_decay=1
-        alpha = max(alpha * (1-alpha_decay), alpha_min)
-        epsilon = max(epsilon * (1-epsilon_decay), epsilon_min)
-
-        logger.debug('size of q table: %s', len(q_table.keys()))
-
-        cumul_reward = 0
-        observation = env.reset()
-        prev_obs = state_disc.discretize(observation)
-        prev_state_key = stateKeyFor(prev_obs)
-        prev_best_action, prev_best_value = maxQ(prev_state_key, q_table)
-        # lastHumanId = -1
-        for t in range(max_steps):
-            # env.render()
-            logger.debug('Observation: %s', observation)
-            logger.debug('becomes discretized into: %s', prev_obs)
-
-            if alpha == 0 and hasattr(env, 'render'):
-                env.render()
-
-            # Select action according to epsilon-greedy policy
-            if random.random() > epsilon:  # greedy/argmax
-                # Would be faster, but would ignore last update
-                # actionIdx = prev_best_action
-                actionIdx, _ = maxQ(prev_state_key, q_table)
-                logger.debug("greedy action: %s", actionIdx)
-            else:
-                actionIdx = action_disc.space.sample()  # random
-                logger.debug("random action: %s", actionIdx)
-            action = action_disc.undiscretize(actionIdx)
-            logger.debug('chosen actionIdx %s (%s), action %s (%s)', actionIdx, type(actionIdx), action, type(action))
-
-            # Take action
-            observation, reward, done, info = env.step(action)
-
-            curr_obs = state_disc.discretize(observation)
-            curr_state_key = stateKeyFor(curr_obs)
-            curr_best_action, curr_best_value = maxQ(curr_state_key, q_table)
-
-            logger.debug('maxQ(curr_state_key, q_table): (%s, %s)',
-                         curr_best_action, curr_best_value)
-
-            # Update the state that we acted on
-            stateActionKey = prev_state_key + '-' + str(actionIdx)
-            logger.debug('stateActionKey: %s', stateActionKey)
-            if type(env).__name__ == 'PensionEnv':
-                logger.info('year %s funds %s reputation %s humans %s meanAge %s '
-                            + 'currAge %s hFunds %s hID %s stateActionkey %s',
-                            info['year'], info['company'].funds, info['company'].reputation,
-                            len([h for h in env.humans if h.active]),
-                            LazyStr(np.mean, [h.age for h in env.humans]),
-                            info['human'].age, info['human'].funds, info['human'].id,
-                            stateActionKey)
-                # print('year', info['year'],
-                #     'funds', info['company'].funds,
-                #     'reputation', info['company'].reputation,
-                #     'humans', len([h for h in env.humans if h.active]),
-                #     'meanAge', np.mean([h.age for h in env.humans]),
-                #     'currAge', info['human'].age,
-                #     'hFunds', info['human'].funds,
-                #     'hID', info['human'].id,
-                #     'stateActionkey', stateActionKey)
-
-            qValOld = q_table.get(stateActionKey, getQTableDefault())
-            td_error = (reward + gamma*curr_best_value) - qValOld
-            qValNew = qValOld + alpha*td_error
-            # if qValOld != getQTableDefault():
-            #     print(stateActionKey, qValOld, '<--', qValNew, 'reward:',reward)
-            logger.debug("%s <-- %s + %s * [(%s + %s * %s) - %s]", qValNew, qValOld, alpha, reward, gamma, curr_best_value, qValOld)
-            q_table[stateActionKey] = qValNew
-
-            (prev_obs,
-             prev_state_key,
-             prev_best_action,
-             prev_best_value) = (curr_obs,
-                                 curr_state_key,
-                                 curr_best_action,
-                                 curr_best_value)
-
-            # h = info['human']
-            # if (h.id != lastHumanId):
-            #    print('###### lastHuman {} != h {}'.format(lastHumanId, h.id))
-            # else:
-            #    print('######## A-OK')
-            # lastHumanId = info['nextHuman'].id
-            # c = info['company']
-            # print(info['year'], 'human:', h.id, h.age, h.funds, h.lastTransaction, h.happiness, 'reward:', reward, 'company:', c.funds, c.reputation)
-            cumul_reward += reward
-            if done:
-                aggr_reward = cumul_reward / (t+1) if average_rewards else cumul_reward
-                overall += aggr_reward
-                last_100[episode % 100] = aggr_reward
-                logger.warning('Episode %s finished after %s timesteps with %s reward %s (last 100 mean = %s)',
-                            episode, t+1, aggr_text, aggr_reward, last_100.mean())
-                if type(env).__name__ == 'PensionEnv':
-                    logger.warning('year %s, q table size %s, epsilon %s, alpha %s, #humans %s, reputation %s',
-                                env.year, len(q_table.keys()),
-                                epsilon, alpha,
-                                len([h for h in env.humans if h.active]),
-                                info['company'].reputation)
-                else:
-                    logger.warning('q table size %s, epsilon %s, alpha %s',
-                                len(q_table.keys()), epsilon, alpha)
-                break
-    logger.warning('Overall %s reward: %s', aggr_text, overall/episodes)
-    logger.warning('Average reward last 100 episodes: %s', last_100.mean())
-    return q_table
-
-
-# Run Q-Learning
-
-# PensionEnv
-# print('Each episode takes {} years (with one time step per year per human).'
-#       .format(penv.YEARS_IN_EPISODE))
 
 logger.info('###### LEARNING: ######')
 
@@ -286,39 +79,48 @@ penv.logger.setLevel(logging.WARNING)
 env.investing = False
 
 seed = 7
+
+# TODO doesn't work somehow for pension_env
 env.seed(seed)  # environment can have its own seed
 
 # seeds for agent
 random.seed(seed)
 np.random.seed(seed)
 
+agent = Agent(env,
+              q_table={},
+              gamma=0.99,
+              min_alpha=0.1,    # was: 0.01
+              min_epsilon=0.1,  # was: 0.03
+              alpha_decay=1,    # default 1 = fixed alpha (instant decay to min_alpha)
+              epsilon_decay=1,  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+              default_value=0,
+              discretize_bins=num_bins,
+              discretize_log=log_bins
+              )
+
+q_table = learn(agent, episodes=1000, max_steps=20000)
+
+
+logger.info('###### TESTING: ######')
+
+logger.setLevel(logging.INFO)
+
+for _ in range(3):
+    reward = agent.run_episode(exploit=True)[1]
+    logger.info("reward: %s", reward)
+
+
 # qTable = q_learn(env,
-#                  alpha_min=0.01,     # temperature/learning rate, was 0.01
+#                  min_alpha=0.01,     # temperature/learning rate, was 0.01
 #                  alpha_decay=1,      # reduction factor per episode, was 1
 #                  gamma=0.99,         # discount factor, was 0.99
-#                  epsilon_min=0.03,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
+#                  min_epsilon=0.03,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
 #                  epsilon_decay=1,    # reduction per episode, was 1
 #                  episodes=15000,     # was: 15000
 #                  max_steps=20000,     # abort episode after this number of steps, was: 20000
 #                  q_table={},
 #                  average_rewards=False)
-
-qTable = q_learn(env,
-                 alpha_min=0.1,     # temperature/learning rate, was 0.01
-                 alpha_decay=1,      # reduction factor per episode, was 1
-                 gamma=0.99,         # discount factor, was 0.99
-                 epsilon_min=0.1,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
-                 epsilon_decay=1,    # reduction per episode, was 1
-                 episodes=5000,     # was: 15000
-                 max_steps=20000,     # abort episode after this number of steps, was: 20000
-                 q_table={},
-                 average_rewards=False)
-
-
-def print_q2(qTable):
-    for s in range(state_disc.space.n):
-        s = np.array(s)
-        print([qTable.get(stateKeyFor(s) + "-" + str(a), 0) for a in range(action_disc.space.n)])
 
 
 # print_q2(qTable)
@@ -339,35 +141,35 @@ def print_q2(qTable):
 # test run:
 
 
-logger.info('###### TESTING: ######')
-
-logger.setLevel(logging.INFO)
-
-qTable2 = q_learn(env,
-                 alpha_min=0,       # temperature/learning rate
-                 alpha_decay=1,     # reduction factor per episode, was 0.003
-                 gamma=0.99,        # discount factor, was 0.99
-                 epsilon_min=0.0,   # minimal epsilon (exploration rate for e-greedy policy)
-                 epsilon_decay=1,   # reduction factor per episode, was 0.003
-                 episodes=3,
-                 max_steps=20000,   # abort episode after this number of steps
-                 q_table=qTable,
-                 average_rewards=False)
+# logger.info('###### TESTING: ######')
+#
+# logger.setLevel(logging.INFO)
+#
+# qTable2 = q_learn(env,
+#                  min_alpha=0,       # temperature/learning rate
+#                  alpha_decay=1,     # reduction factor per episode, was 0.003
+#                  gamma=0.99,        # discount factor, was 0.99
+#                  min_epsilon=0.0,   # minimal epsilon (exploration rate for e-greedy policy)
+#                  epsilon_decay=1,   # reduction factor per episode, was 0.003
+#                  episodes=3,
+#                  max_steps=20000,   # abort episode after this number of steps
+#                  q_table=qTable,
+#                  average_rewards=False)
 
 
 # print_q2(qTable)
 
 
 # qTable = q_learn(env,
-#                  alpha_min=0.01,  # temperature/learning rate
+#                  min_alpha=0.01,  # temperature/learning rate
 #                  gamma=0.95,  # discount factor, was 0.95
-#                  epsilon_min=0.03,    # minimal epsilon (exploration rate for e-greedy policy)
+#                  min_epsilon=0.03,    # minimal epsilon (exploration rate for e-greedy policy)
 #                  decay=0.995,  #  reduction factor per episode, was 0.997
 #                  episodes=1000,
 #                  max_steps=2000,  # abort episode after this number of steps
 #                  q_table={})
 
 
-logger.info(qTable)
+logger.info(q_table)
 
 # (year, 'human:', i, h.age, fundsBefore, h.funds, h.happiness, 'reward:', r, 'company:', companies[0].funds, companies[0].reputation)

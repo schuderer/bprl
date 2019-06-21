@@ -6,6 +6,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def create_discretizers(env, num_bins, log_bins):
+    logger.warning({'num_bins': num_bins, 'log_bins': log_bins})
+    logger.warning("Discretize observation_space %s", env.observation_space)
+    state_disc = Discretizer(env.observation_space,
+                         num_bins,
+                         log_bins=log_bins)
+    logger.warning("Discretize action %s", env.action_space)
+    action_disc = Discretizer(env.action_space,
+                          num_bins,
+                          log_bins=log_bins)
+    return state_disc, action_disc
+
+
 class Discretizer:
     """Ensures that a (state or action) gym space is discrete.
 
@@ -46,6 +59,8 @@ class Discretizer:
         if self.grid is None:
             return np.array(indices)
         else:
+            if not hasattr(indices, '__iter__'):
+                indices = [indices]
             return np.array(list(g[min([int(i), len(g)-1])]
                         for i, g in zip(np.array(indices), self.grid)))
 
