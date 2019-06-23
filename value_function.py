@@ -1,3 +1,4 @@
+from collections import defaultdict
 import numpy as np
 from discretizer import create_discretizers
 import logging
@@ -28,7 +29,9 @@ class ActionValueFunction():
         self.default_value = default_value
         self.state_disc, self.action_disc = \
             create_discretizers(self.env, discretize_bins, discretize_log)
-        self.q_table = {}
+        state_value_default = [default_value for _ in range(self.action_disc.space.n)]
+        self.q_table = defaultdict(lambda: state_value_default.copy(), {})
+        # self.q_table = {}
         self.remembered_state_keys = {}
         self.remembered_state_action_keys = {}
 
@@ -58,8 +61,7 @@ class ActionValueFunction():
             state_key = self.remembered_state_keys[load]
 
         discrete_action = self.action_disc.discretize(action)
-        state_action_key = state_key + '-' + str(discrete_action)
-        self.q_table[state_action_key] = value
+        self.q_table[state_key][discrete_action] = value
 
     def print_q(self, qTable):
         for s in range(self.state_disc.space.n):
@@ -68,13 +70,13 @@ class ActionValueFunction():
             else:  # todo
                 # indices = np.unravel_index(range(statesDisc.n), state_grid.shape)
                 s = self.state_disc.grid[s]
-            logger.info([qTable.get(self._stateKeyFor(s) + '-' + str(a), self.default_value)
+            logger.info([qTable[self._stateKeyFor(s)][a]
                             for a in range(self.action_disc.space.n)])
 
     def print_q_frozenlake(self, qTable):
         for s in range(self.state_disc.space.n):
             s = np.array(s)
-            print([qTable.get(self._stateKeyFor(s) + "-" + str(a), 0)
+            print([qTable[self._stateKeyFor(s)][a]
                     for a in range(self.action_disc.space.n)])
 
 
@@ -91,5 +93,4 @@ class ActionValueFunction():
         # return reduce(lambda a, v: str(a) + '-' + str(v), discreteObs)
 
     def _get_action_values(self, key_start, q_table):
-        return [q_table.get(key_start + '-' + str(aIdx), self.default_value)
-                for aIdx in range(self.action_disc.space.n)]
+        return q_table[key_start]
