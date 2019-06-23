@@ -31,9 +31,7 @@ class ActionValueFunction():
             create_discretizers(self.env, discretize_bins, discretize_log)
         state_value_default = [default_value for _ in range(self.action_disc.space.n)]
         self.q_table = defaultdict(lambda: state_value_default.copy(), {})
-        # self.q_table = {}
         self.remembered_state_keys = {}
-        self.remembered_state_action_keys = {}
 
     def select_action(self, observation, policy, policy_params, save=None, load=None):
         """Get action/value tuple of selected action"""
@@ -61,7 +59,7 @@ class ActionValueFunction():
             state_key = self.remembered_state_keys[load]
 
         discrete_action = self.action_disc.discretize(action)
-        self.q_table[state_key][discrete_action] = value
+        self.q_table[state_key][int(discrete_action)] = value
 
     def print_q(self, qTable):
         for s in range(self.state_disc.space.n):
@@ -79,7 +77,13 @@ class ActionValueFunction():
             print([qTable[self._stateKeyFor(s)][a]
                     for a in range(self.action_disc.space.n)])
 
-
+    # @staticmethod
+    # def _stateKeyFor(discreteObs):
+    #     if discreteObs.shape == ():
+    #         d_obs = np.reshape(discreteObs, (1,))
+    #     else:
+    #         d_obs = discreteObs
+    #     return d_obs.prod()  # TODO: How is this slower than string concatenation???
 
     @staticmethod
     def _stateKeyFor(discreteObs):

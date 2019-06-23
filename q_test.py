@@ -15,15 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 # @do_profile(follow=[agent.Agent.run_episode,
-#                     agent.ActionValueFunction.select_action,
-#                     agent.ActionValueFunction.update_value,
+#                     value_function.ActionValueFunction.select_action,
+#                     value_function.ActionValueFunction.update_value,
 #                     agent.greedy,
 #                     agent.epsilon_greedy])
 def learn(agent, episodes, max_steps):
     overall = 0
     last_100 = np.zeros((100,))
+    num_actions = agent.q_function.action_disc.space.n
     for episode in range(episodes):
-        logger.debug('size of q table: %s', len(agent.q_function.q_table.keys()))
+        logger.debug('size of q table: %s', len(agent.q_function.q_table.keys())*num_actions)
 
         q_table, cumul_reward, num_steps, info = \
             agent.run_episode(max_steps=max_steps, exploit=False)
@@ -34,7 +35,7 @@ def learn(agent, episodes, max_steps):
                        episode, num_steps, cumul_reward, last_100.mean())
         if type(agent.env).__name__ == 'PensionEnv':
             logger.warning('year %s, q table size %s, epsilon %s, alpha %s, #humans %s, reputation %s',
-                        agent.env.year, len(q_table.keys()),
+                        agent.env.year, len(q_table.keys()) * num_actions,
                         agent.epsilon, agent.alpha,
                         len([h for h in agent.env.humans if h.active]),
                         info['company'].reputation)
@@ -75,7 +76,8 @@ log_bins = False
 #     reward_threshold=0.78, # optimum = .8196
 # )
 # env = gym.make('FrozenLakeNotSlippery-v0')
-
+# num_bins = 1
+# log_bins = False
 
 
 logger.info('###### LEARNING: ######')
@@ -110,16 +112,16 @@ agent = agent.Agent(env,
                  epsilon_decay=1  # default: 1 = fixed epsilon (instant decay to min_epsilon)
                  )
 
-q_table = learn(agent, episodes=2000, max_steps=20000)
+q_table = learn(agent, episodes=1000, max_steps=20000)
 
 
-logger.info('###### TESTING: ######')
-
-logger.setLevel(logging.INFO)
-
-for _ in range(3):
-    reward = agent.run_episode(exploit=True)[1]
-    logger.info("reward: %s", reward)
+# logger.info('###### TESTING: ######')
+#
+# logger.setLevel(logging.INFO)
+#
+# for _ in range(3):
+#     reward = agent.run_episode(exploit=True)[1]
+#     logger.info("reward: %s", reward)
 
 
 
