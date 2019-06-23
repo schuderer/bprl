@@ -5,18 +5,22 @@ import random
 import numpy as np
 import gym
 import pension_env as penv
-from agent import Agent
+import agent
+# from utils import do_profile
 import logging
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
+# @do_profile(follow=[agent.Agent.run_episode,
+#                     agent.ActionValueFunction.select_action,
+#                     agent.ActionValueFunction.update_value])
 def learn(agent, episodes, max_steps):
     overall = 0
     last_100 = np.zeros((100,))
     for episode in range(episodes):
-        logger.debug('size of q table: %s', len(agent.q_table.keys()))
+        logger.debug('size of q table: %s', len(agent.q_function.q_table.keys()))
 
         q_table, cumul_reward, num_steps, info = \
             agent.run_episode(max_steps=max_steps, exploit=False)
@@ -80,26 +84,30 @@ env.investing = False
 
 seed = 7
 
-# TODO doesn't work somehow for pension_env
+# TODO doesn't work somehow for envs
 env.seed(seed)  # environment can have its own seed
 
 # seeds for agent
 random.seed(seed)
 np.random.seed(seed)
 
-agent = Agent(env,
-              q_table={},
-              gamma=0.99,
-              min_alpha=0.1,    # was: 0.01
-              min_epsilon=0.1,  # was: 0.03
-              alpha_decay=1,    # default 1 = fixed alpha (instant decay to min_alpha)
-              epsilon_decay=1,  # default: 1 = fixed epsilon (instant decay to min_epsilon)
-              default_value=0,
-              discretize_bins=num_bins,
-              discretize_log=log_bins
-              )
+q_func = agent.ActionValueFunction(env,
+                         default_value=0,
+                         discretize_bins=num_bins,
+                         discretize_log=log_bins)
 
-q_table = learn(agent, episodes=1000, max_steps=20000)
+agent = agent.Agent(env,
+                 q_function=q_func,
+                 update_policy=agent.greedy,
+                 exploration_policy=agent.epsilon_greedy,
+                 gamma=0.99,
+                 min_alpha=0.1,
+                 min_epsilon=0.1,
+                 alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
+                 epsilon_decay=1  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+                 )
+
+q_table = learn(agent, episodes=2000, max_steps=20000)
 
 
 logger.info('###### TESTING: ######')
@@ -109,6 +117,47 @@ logger.setLevel(logging.INFO)
 for _ in range(3):
     reward = agent.run_episode(exploit=True)[1]
     logger.info("reward: %s", reward)
+
+
+
+# logger.info('###### LEARNING: ######')
+#
+# logger.setLevel(logging.WARNING)
+# penv.logger.setLevel(logging.WARNING)
+#
+# env.investing = False
+#
+# seed = 7
+#
+# # TODO doesn't work somehow for envs
+# env.seed(seed)  # environment can have its own seed
+#
+# # seeds for agent
+# random.seed(seed)
+# np.random.seed(seed)
+#
+# agent = Agent(env,
+#               q_table={},
+#               gamma=0.99,
+#               min_alpha=0.1,    # was: 0.01
+#               min_epsilon=0.1,  # was: 0.03
+#               alpha_decay=1,    # default 1 = fixed alpha (instant decay to min_alpha)
+#               epsilon_decay=1,  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+#               default_value=0,
+#               discretize_bins=num_bins,
+#               discretize_log=log_bins
+#               )
+#
+# q_table = learn(agent, episodes=1000, max_steps=20000)
+#
+#
+# logger.info('###### TESTING: ######')
+#
+# logger.setLevel(logging.INFO)
+#
+# for _ in range(3):
+#     reward = agent.run_episode(exploit=True)[1]
+#     logger.info("reward: %s", reward)
 
 
 # qTable = q_learn(env,
