@@ -6,6 +6,7 @@ import numpy as np
 import gym
 import pension_env as penv
 import agent
+import value_function
 # from utils import do_profile
 import logging
 
@@ -15,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 # @do_profile(follow=[agent.Agent.run_episode,
 #                     agent.ActionValueFunction.select_action,
-#                     agent.ActionValueFunction.update_value])
+#                     agent.ActionValueFunction.update_value,
+#                     agent.greedy,
+#                     agent.epsilon_greedy])
 def learn(agent, episodes, max_steps):
     overall = 0
     last_100 = np.zeros((100,))
@@ -91,7 +94,7 @@ env.seed(seed)  # environment can have its own seed
 random.seed(seed)
 np.random.seed(seed)
 
-q_func = agent.ActionValueFunction(env,
+q_func = value_function.ActionValueFunction(env,
                          default_value=0,
                          discretize_bins=num_bins,
                          discretize_log=log_bins)
