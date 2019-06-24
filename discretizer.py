@@ -41,7 +41,7 @@ class Discretizer:
                                           bins,
                                           log=log_bins)
             logger.warning('grid %s', self.grid)
-            self.space = gym.spaces.discrete.Discrete(self.grid.size)
+            self.space = gym.spaces.discrete.Discrete(self.grid.shape[1] ** self.grid.shape[0])  # self.grid.size) # we need number of combinations across dimensions, not count of elements
         elif type(env_space) is gym.spaces.discrete.Discrete:
             self.grid = None
             self.space = env_space
@@ -50,7 +50,7 @@ class Discretizer:
 
     def discretize(self, vals):
         if self.grid is None:
-            return np.array(vals)
+            return np.reshape(np.array(vals), (1,))
         else:
             return np.array(list(int(np.digitize(s, g, right=True))
                         for s, g in zip(np.array(vals), self.grid)))
