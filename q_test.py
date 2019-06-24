@@ -115,13 +115,13 @@ agent = agent.Agent(env,
 q_table = learn(agent, episodes=1000, max_steps=20000)
 
 
-# logger.info('###### TESTING: ######')
-#
-# logger.setLevel(logging.INFO)
-#
-# for _ in range(3):
-#     reward = agent.run_episode(exploit=True)[1]
-#     logger.info("reward: %s", reward)
+logger.info('###### TESTING: ######')
+
+logger.setLevel(logging.INFO)
+
+for _ in range(3):
+    reward = agent.run_episode(exploit=True)[1]
+    logger.info("reward: %s", reward)
 
 
 
