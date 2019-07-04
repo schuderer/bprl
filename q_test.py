@@ -4,7 +4,8 @@ import sys
 import random
 import numpy as np
 import gym
-import pension_env as penv
+# import gym_fin.envs.pension_env as penv
+import gym_fin
 from agent import Agent
 import logging
 
@@ -42,9 +43,9 @@ def learn(agent, episodes, max_steps):
 
 # Run Q-Learning
 
-# env = penv.PensionEnv()
-# num_bins = 12
-# log_bins = True
+env = gym.make('Pension-v0')
+num_bins = 12
+log_bins = True
 
 # env = gym.make('Pendulum-v0')
 # num_bins = 10
@@ -54,9 +55,9 @@ def learn(agent, episodes, max_steps):
 # num_bins = 10
 # log_bins = False
 
-env = gym.make('MountainCar-v0')
-num_bins = 20
-log_bins = False
+# env = gym.make('MountainCar-v0')
+# num_bins = 20
+# log_bins = False
 
 # env = gym.make('FrozenLake-v0')
 # from gym.envs.registration import register
@@ -74,7 +75,7 @@ log_bins = False
 logger.info('###### LEARNING: ######')
 
 logger.setLevel(logging.WARNING)
-penv.logger.setLevel(logging.WARNING)
+# penv.logger.setLevel(logging.WARNING)
 
 env.investing = False
 

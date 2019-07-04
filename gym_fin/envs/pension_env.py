@@ -1,12 +1,16 @@
 import numpy as np
-from gym import core, spaces
+import gym
+from gym import error
+from gym import spaces
+# from gym import utils
 from gym.utils import seeding
-import utils
+from . import utils
 import logging
 
 # logging.debug("some invisible debug message to get logging to set up implicit stuff. whatever.")
 # logging.basicConfig()
 logger = logging.getLogger(__name__)
+# todo: need to change logging so something else to be gym compatible!
 
 YEARS_IN_EPISODE = 750
 MEAN_STOCKS_RETURN = 8.5/100  # s&p500
@@ -31,7 +35,7 @@ def softmax(x):
     return e_x / e_x.sum(axis=0)
 
 
-class PensionEnv(core.Env):
+class PensionEnv(gym.Env):
     """The environment.
     TODO: doc, rendering?
     """
@@ -121,7 +125,7 @@ class PensionEnv(core.Env):
             curr_human.live_one_year()
 
         # remove_the_dead() # disabled to keep humans from changing list indices
- 
+
         # Determine current observation for returning
         # WARNING: THIS SHOULD HAPPEN HERE, BUT AS WE'RE VISITING A DIFFERENT
         # CLIENT EACH TIME, THE LAST OBSERVATION IS ABOUT A DIFFERENT CLIENT
@@ -182,7 +186,7 @@ class PensionEnv(core.Env):
 
         return (observation, reward, self._terminal(), info)
 
-    def render(self, mode='human'):
+    def render(self, mode='human', close=False):
         pass
         # raise NotImplementedError
 
