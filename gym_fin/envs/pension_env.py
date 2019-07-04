@@ -1,10 +1,10 @@
 import numpy as np
 import gym
-from gym import error
+# from gym import error
 from gym import spaces
 # from gym import utils
 from gym.utils import seeding
-from . import utils
+from gym_fin.envs import utils
 import logging
 
 # logging.debug("some invisible debug message to get logging to set up implicit stuff. whatever.")
