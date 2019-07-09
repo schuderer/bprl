@@ -3,9 +3,9 @@
 #     master
 
 git:
-  - sparse_checkout: !figs/*
-  - sparse_checkout: !output/*
-  - sparse_checkout: !runs/*
+  sparse_checkout: !figs/*
+  sparse_checkout: !output/*
+  sparse_checkout: !runs/*
 
 os:
   - linux
