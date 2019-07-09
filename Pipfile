@@ -8,6 +8,14 @@ ipykernel = "*"
 python-language-server = {extras = ["all"],version = "*"}
 line-profiler = "*"
 pytest = "*"
+twine = "*"
+wheel = "*"
+setuptools = "*"
+flake8 = "*"
+Sphinx = "*"
+sphinx-autobuild = "*"
+pytest-cov = "*"
+gym-fin = {editable = true,path = "."}
 
 [packages]
 numpy = "*"
