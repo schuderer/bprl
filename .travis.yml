@@ -1,9 +1,16 @@
-dist: xenial   # required for Python >= 3.7
-
 # branches:
 #   only:
 #     master
 
+git:
+  sparse_checkout:
+    - figs/*
+    - output/*
+    - runs/*
+
+os:
+  - linux
+dist: xenial   # required for Python >= 3.7
 language: python
 
 python:
@@ -19,7 +26,7 @@ matrix:
   include:
     - python: '3.7'
       env: DOCS=1
-  allow-failures:
+  allow_failures:
     - python: '2.7'
 
 cache: pip
