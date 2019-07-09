@@ -34,8 +34,9 @@ def lint(session):
     session.run('flake8', package_name)
 
 
-@nox.session(python=['3.5', '3.6', '3.7'])
+# @nox.session(python=['3.5', '3.6', '3.7'])  # Done in Travis-CI
 # @nox.parametrize("django", ["1.9", "2.0"])
+@nox.session(python='3.7')
 def tests(session):
     """Run the unit test suite"""
     # already part of dev-Pipfile
