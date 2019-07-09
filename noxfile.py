@@ -36,7 +36,7 @@ def lint(session):
 
 
 # @nox.parametrize("django", ["1.9", "2.0"])
-@nox.session(python=['2.7', '3.7'])  # '3.5', '3.6',Done in Travis-CI
+@nox.session  # (python=['2.7', '3.5', '3.6', '3.7']) # Done in Travis-CI
 def tests(session):
     """Run the unit test suite"""
     # already part of dev-Pipfile
@@ -55,8 +55,9 @@ def tests(session):
 @nox.session  # (python='3.7')  # Done in Travis-CI
 def docs(session):
     # already part of dev-Pipfile:
-    # session.install('sphinx', 'sphinx-autobuild')
-    install_requirements(session, safety_check=False)
+    session.install('sphinx', 'gym')
+    session.install('.')
+    # install_requirements(session, safety_check=False)
     # session.install('-e', '.')  # we're dealing with a package
     # session.run('pipenv', 'install', '-e', '.')
     session.chdir('docs')
@@ -67,6 +68,9 @@ def docs(session):
         'build'
     ]
     if 'serve' in session.posargs:
-        session.run('pipenv', 'run', 'sphinx-autobuild', *sphinx_args)
+        # session.run('pipenv', 'run', 'sphinx-autobuild', *sphinx_args)
+        session.install('sphinx-autobuild')
+        session.run('sphinx-autobuild', *sphinx_args)
     else:
-        session.run('pipenv', 'run', 'sphinx-build', *sphinx_args)
+        # session.run('pipenv', 'run', 'sphinx-build', *sphinx_args)
+        session.run('sphinx-build', *sphinx_args)
