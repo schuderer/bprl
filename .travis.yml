@@ -1,5 +1,11 @@
 dist: xenial   # required for Python >= 3.7
+
+# branches:
+#   only:
+#     master
+
 language: python
+
 python:
   - '2.7'
   - '3.5'
@@ -8,8 +14,21 @@ python:
   # - "3.7-dev"  # 3.7 development branch
   # - "3.8-dev"  # 3.8 development branch
   # - "nightly"  # nightly build
+
+matrix:
+  include:
+    - python: '3.7'
+      env: DOCS=1
+  allow-failures:
+    - python: '2.7'
+
+cache: pip
+
 install:
   - pip install pipenv nox
   # - pipenv --bare install --deploy --dev
+
 script:
-  - nox
+  - nox -s lint
+  - nox -s tests -- safety
+  - if [[ $DOCS == 1 ]]; then nox -s docs; fi
