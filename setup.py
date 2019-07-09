@@ -5,7 +5,8 @@ import setuptools
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
-# We can import the package before the build because we don't need to compile anything
+# We can import the package before the build
+# because we don't need to compile anything
 import gym_fin
 version = gym_fin.__version__
 

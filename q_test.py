@@ -24,21 +24,25 @@ def learn(agent, episodes, max_steps):
     last_100 = np.zeros((100,))
     num_actions = agent.q_function.action_disc.space.n
     for episode in range(episodes):
-        logger.debug('size of q table: %s', len(agent.q_function.q_table.keys())*num_actions)
+        logger.debug('size of q table: %s',
+                     len(agent.q_function.q_table.keys())*num_actions)
 
         q_table, cumul_reward, num_steps, info = \
             agent.run_episode(max_steps=max_steps, exploit=False)
 
         overall += cumul_reward
         last_100[episode % 100] = cumul_reward
-        logger.warning('Episode %s finished after %s timesteps with cumulative reward %s (last 100 mean = %s)',
+        logger.warning('Episode %s finished after %s timesteps with '
+                       'cumulative reward %s (last 100 mean = %s)',
                        episode, num_steps, cumul_reward, last_100.mean())
         if type(agent.env).__name__ == 'PensionEnv':
-            logger.warning('year %s, q table size %s, epsilon %s, alpha %s, #humans %s, reputation %s',
-                        agent.env.year, len(q_table.keys()) * num_actions,
-                        agent.epsilon, agent.alpha,
-                        len([h for h in agent.env.humans if h.active]),
-                        info['company'].reputation)
+            logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
+                           '#humans %s, reputation %s',
+                           agent.env.year,
+                           len(q_table.keys()) * num_actions,
+                           agent.epsilon, agent.alpha,
+                           len([h for h in agent.env.humans if h.active]),
+                           info['company'].reputation)
         else:
             logger.warning('q table size %s, epsilon %s, alpha %s',
                         len(q_table.keys()), agent.epsilon, agent.alpha)
@@ -109,7 +113,7 @@ agent = agent.Agent(env,
                  min_alpha=0.1,
                  min_epsilon=0.1,
                  alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
-                 epsilon_decay=1  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+                 epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
                  )
 
 q_table = learn(agent, episodes=1000, max_steps=20000)
@@ -122,7 +126,6 @@ logger.setLevel(logging.INFO)
 for _ in range(3):
     reward = agent.run_episode(exploit=True)[1]
     logger.info("reward: %s", reward)
-
 
 
 # logger.info('###### LEARNING: ######')
@@ -146,8 +149,8 @@ for _ in range(3):
 #               gamma=0.99,
 #               min_alpha=0.1,    # was: 0.01
 #               min_epsilon=0.1,  # was: 0.03
-#               alpha_decay=1,    # default 1 = fixed alpha (instant decay to min_alpha)
-#               epsilon_decay=1,  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+#               alpha_decay=1,    # default 1 = fixed alpha (instant decay)
+#               epsilon_decay=1,  # default: 1 = fixed epsilon (instant decay)
 #               default_value=0,
 #               discretize_bins=num_bins,
 #               discretize_log=log_bins
@@ -169,10 +172,10 @@ for _ in range(3):
 #                  min_alpha=0.01,     # temperature/learning rate, was 0.01
 #                  alpha_decay=1,      # reduction factor per episode, was 1
 #                  gamma=0.99,         # discount factor, was 0.99
-#                  min_epsilon=0.03,   # minimal epsilon (exploration rate for e-greedy policy), was 0.03
+#                  min_epsilon=0.03,   # minimal epsilon, was 0.03
 #                  epsilon_decay=1,    # reduction per episode, was 1
 #                  episodes=15000,     # was: 15000
-#                  max_steps=20000,     # abort episode after this number of steps, was: 20000
+#                  max_steps=20000,     # abort episode after steps, was 20000
 #                  q_table={},
 #                  average_rewards=False)
 
@@ -185,7 +188,7 @@ for _ in range(3):
 # qTable_long = {'8-11-0': 94.85750359596473, '9-11-1': 93.40323065017274, '8-10-0': 54.05487303099865, '9-10-0': 69.4452590372413, '9-6-0': 28.350606637340828, '10-10-1': 0.0, '8-11-1': 88.69965983586648, '9-10-1': 0.0, '9-9-0': 43.48613366033944, '9-11-0': 95.0580167838315, '8-6-0': 2.9663781106297673, '8-10-1': 0.0, '0-10-1': 15.319100097519744, '10-9-1': 0.0, '8-9-1': 0.0, '10-11-1': 95.5552419744198, '0-11-0': 74.40527194908847, '9-6-1': 0.0, '10-10-0': 77.7631753592817, '9-9-1': 0.0, '8-9-0': 10.466543791570732, '10-11-0': 96.16730642224013, '10-9-0': 52.50022631368486, '10-6-1': 0.0, '10-6-0': 47.267848204387754, '8-12-1': 96.89479613623092, '9-12-0': 97.69003889839313, '10-12-1': 97.72497266156432, '8-12-0': 98.29330602203332, '9-12-1': 97.66739364403784, '11-11-0': 97.39174531384064, '11-10-0': 90.39064853287226, '11-12-0': 98.44059070537676, '11-11-1': 96.537239260211, '12-12-1': 98.20931866611063, '12-11-1': 95.9104943675021, '11-9-1': 0.0, '10-12-0': 98.30945416910251, '11-10-1': 0.0, '12-10-1': 0.0, '11-12-1': 98.08502073963916, '12-11-0': 96.45089471340923, '11-6-0': 25.099394364670093, '12-10-0': 91.85700280656347, '12-9-0': 49.73730421259588, '12-6-0': 24.967896842942707, '12-12-0': 97.48316451537686, '11-9-0': 49.55524985337189, '12-9-1': 0.0, '0-11-1': 74.09507814228127, '0-6-1': 0.0, '0-9-1': 0.3472440423522913, '0-9-0': 1.0870036388169635, '0-10-0': 13.289073071107142, '0-6-0': 0.17096349741069655, '0-12-1': 81.01054815466709, '8-6-1': 0.0, '10-13-1': 62.000330888305314, '9-13-1': 65.37576691088769, '8-13-1': 21.784954532010495, '11-13-0': 0.7057965640065662, '10-13-0': 0.9732023924806424, '0-12-0': 19.786256147889635, '11-13-1': 34.36227034336228, '9-13-0': 0.43486906879583603, '8-13-0': 0.01, '12-13-1': 0.9807091303179641}
 
 
-#CartPoleEnv
+# CartPoleEnv
 # qTable_cartpole = {'5-5-5-4-0': 65.79490669031206, '5-4-5-5-1': 64.57569278848801, '5-5-5-5-1': 68.49154571786907, '5-5-5-4-1': 67.78739136587991, '5-5-4-4-1': 56.32032629459533, '5-5-4-4-0': 60.351318229349104, '5-5-3-4-1': 26.412916541887174, '5-5-3-4-0': 46.137147703313836, '5-4-4-5-0': 72.06071849192973, '5-4-4-5-1': 72.11543487449585, '4-4-5-5-0': 67.83058928464905, '4-4-5-5-1': 76.66090494844029, '4-5-5-5-1': 76.06487578430338, '4-5-5-4-0': 76.33710584431064, '4-5-5-4-1': 74.80620239157572, '4-5-5-5-0': 75.60527941838072, '4-4-6-5-0': 39.83443593592824, '4-4-6-5-1': 75.77655006878584, '5-5-4-5-0': 73.95532194368253, '5-4-5-5-0': 60.52180088641191, '4-4-4-5-0': 77.0086911880735, '4-4-4-5-1': 73.40541594237541, '4-4-5-4-1': 76.90526572006586, '4-5-4-4-1': 58.03854228502024, '5-4-4-4-1': 76.58156035541451, '4-4-5-4-0': 77.07703652143826, '4-4-4-4-0': 72.71897012996415, '4-5-4-5-1': 66.87072833790249, '4-5-4-4-0': 71.12586244934516, '4-5-6-5-0': 66.89856933267598, '5-5-5-5-0': 68.06105097418555, '5-4-6-5-1': 43.00838649478901, '5-5-6-5-0': 46.83489408845276, '5-4-6-5-0': 29.249089041239273, '5-4-5-4-1': 82.10537185010458, '4-5-6-4-1': 76.47937167101995, '4-5-6-5-1': 77.42371738828543, '4-5-6-4-0': 72.99033204637685, '5-5-6-5-1': 67.83226450857303, '5-4-4-4-0': 76.83772635801124, '4-5-3-4-0': 43.199314383183214, '4-5-3-4-1': 33.62985051262434, '5-4-3-4-1': 64.73454521766631, '5-4-3-4-0': 83.12305595819369, '5-4-3-5-0': 77.86899659168468, '4-4-3-5-0': 75.98653411722296, '4-4-3-5-1': 60.96725461273007, '4-4-4-4-1': 69.41254547511306, '4-4-3-4-1': 50.64212968220821, '4-4-3-4-0': 62.03932900328076, '5-4-5-4-0': 65.00642910135853, '5-4-3-5-1': 71.02257203656347, '5-5-6-4-1': 70.50523002146409, '5-5-6-4-0': 64.90548269885909, '5-5-4-5-1': 73.37858483628298, '4-5-4-5-0': 77.8673975515054, '5-5-3-5-0': 82.45839347217455, '6-5-4-4-0': 27.795285427749988, '6-5-3-4-0': 28.66777234182507, '6-5-3-5-1': 26.30055116826335, '6-5-3-4-1': 16.693431314178405, '4-4-6-4-0': 67.59513442199535, '5-5-3-5-1': 67.09515847301057, '6-5-6-4-0': 26.022973646916576, '6-5-6-5-0': 18.228118807338774, '6-5-6-5-1': 28.610263209067483, '6-5-5-4-0': 23.615101321475862, '6-5-5-4-1': 29.62433480415893, '6-5-4-4-1': 19.53766386458999, '6-5-3-5-0': 33.43744281453817, '6-5-4-5-0': 31.27993374862174, '6-5-4-5-1': 25.551840889590054, '6-4-5-5-0': 6.516933012471345, '6-4-6-5-0': 2.1531633236487546, '6-5-5-5-1': 30.04097524280532, '6-5-5-5-0': 26.80842708610143, '3-4-3-4-0': 24.32064801155313, '3-4-4-4-0': 27.808597167353916, '3-4-4-5-1': 27.712150555576518, '3-4-4-4-1': 24.772981154194735, '3-4-3-5-1': 22.059325391412795, '3-4-3-4-1': 16.46366089493981, '4-4-6-4-1': 83.97352476432845, '3-4-4-5-0': 24.584782721014022, '6-4-4-5-0': 8.54251041118917, '6-4-4-5-1': 31.4440417651805, '6-4-6-5-1': 14.91540432742624, '6-5-6-4-1': 29.44482970314337, '6-4-5-5-1': 28.932727160593593, '3-4-5-5-0': 12.52513350815326, '3-4-5-5-1': 12.463640200981548, '3-4-5-4-0': 20.679388743564207, '3-4-5-4-1': 25.97113176881964, '3-4-3-5-0': 27.405930935077382, '6-4-3-5-0': 23.89305078223371, '3-4-6-5-0': 3.7077858804422483, '3-4-6-5-1': 3.283656251135147, '3-5-3-4-1': 2.051892289417734, '3-5-4-4-0': 18.66532595315425, '5-4-6-4-0': 7.821258581459492, '3-4-6-4-0': 2.6716895481300553, '3-5-3-4-0': 0.403687570066275, '6-4-4-4-0': 4.332397326693339, '6-4-4-4-1': 2.2499377784411747, '3-5-5-4-0': 20.29009808436112, '4-5-3-5-0': 20.302462038711976, '3-5-5-5-0': 4.589863601732336}
 
 
@@ -203,10 +206,10 @@ for _ in range(3):
 #                  min_alpha=0,       # temperature/learning rate
 #                  alpha_decay=1,     # reduction factor per episode, was 0.003
 #                  gamma=0.99,        # discount factor, was 0.99
-#                  min_epsilon=0.0,   # minimal epsilon (exploration rate for e-greedy policy)
+#                  min_epsilon=0.0,   # minimal epsilon (exploration rate)
 #                  epsilon_decay=1,   # reduction factor per episode, was 0.003
 #                  episodes=3,
-#                  max_steps=20000,   # abort episode after this number of steps
+#                  max_steps=20000,   # abort episode after num of steps
 #                  q_table=qTable,
 #                  average_rewards=False)
 
@@ -217,7 +220,7 @@ for _ in range(3):
 # qTable = q_learn(env,
 #                  min_alpha=0.01,  # temperature/learning rate
 #                  gamma=0.95,  # discount factor, was 0.95
-#                  min_epsilon=0.03,    # minimal epsilon (exploration rate for e-greedy policy)
+#                  min_epsilon=0.03,    # minimal epsilon
 #                  decay=0.995,  #  reduction factor per episode, was 0.997
 #                  episodes=1000,
 #                  max_steps=2000,  # abort episode after this number of steps
@@ -226,4 +229,5 @@ for _ in range(3):
 
 logger.info(q_table)
 
-# (year, 'human:', i, h.age, fundsBefore, h.funds, h.happiness, 'reward:', r, 'company:', companies[0].funds, companies[0].reputation)
+# (year, 'human:', i, h.age, fundsBefore, h.funds, h.happiness, 'reward:', r,
+#  'company:', companies[0].funds, companies[0].reputation)

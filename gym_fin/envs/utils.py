@@ -40,7 +40,8 @@ try:
         return inner
 
 except ImportError:
-    print("Could not import line profiler. Accidentally left in production code?")
+    print('Could not import line profiler. '
+          'Accidentally left in production code?')
 
     def do_profile(follow=[]):
         def inner(func):

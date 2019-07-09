@@ -5,7 +5,8 @@
 # http://www.sphinx-doc.org/en/master/config
 
 ####
-# After: https://medium.com/@richdayandnight/a-simple-tutorial-on-how-to-document-your-python-project-using-sphinx-and-rinohtype-177c22a15b5b
+# After:
+# https://medium.com/@richdayandnight/a-simple-tutorial-on-how-to-document-your-python-project-using-sphinx-and-rinohtype-177c22a15b5b
 ####
 
 # -- Path setup --------------------------------------------------------------
