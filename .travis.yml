@@ -12,6 +12,4 @@ install:
   - pip install pipenv nox
   # - pipenv --bare install --deploy --dev
 script:
-  - nox -s lint
-  - nox -s tests
-  - nox -s docs
+  - nox

@@ -11,7 +11,8 @@ def install_requirements(session, dev=True, safety_check=True):
     pipenv_args = [
         '--bare',
         'install',
-        '--deploy'
+        '--skip-lock'  # 'soft' requirements (for libraries)
+        # '--deploy'  # used for applications (freezed reqs), not libraries
     ]
     if dev:
         pipenv_args.append('--dev')
@@ -35,19 +36,19 @@ def lint(session):
 
 
 # @nox.parametrize("django", ["1.9", "2.0"])
-@nox.session  # (python=['3.5', '3.6', '3.7'])  # Done in Travis-CI
+@nox.session(python=['2.7', '3.7'])  # '3.5', '3.6',Done in Travis-CI
 def tests(session):
     """Run the unit test suite"""
     # already part of dev-Pipfile
     # session.install('pytest', 'pytest-cov')
-    install_requirements(session, safety_check=False)
+    safety_check = 'safety' in session.posargs
+    install_requirements(session, safety_check=safety_check)
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
     session.run('pipenv', 'run',
         'pytest',
         '--quiet',
-        'tests',
-        *session.posargs  # not used here, use to pass additional flags
+        'tests'
     )
 
 
