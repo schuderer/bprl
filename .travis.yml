@@ -30,5 +30,5 @@ install:
 
 script:
   - nox -s lint
-  - nox -s tests -- safety
+  - nox -s tests  # -- safety
   - if [[ $DOCS == 1 ]]; then nox -s docs; fi
