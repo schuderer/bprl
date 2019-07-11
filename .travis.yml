@@ -3,12 +3,10 @@
 #     master
 
 git:
-  sparse_checkout: !figs/*
-  sparse_checkout: !output/*
-  sparse_checkout: !runs/*
+  sparse_checkout: ![for]*/*  # Don't check out directories figs, output, runs
 
 os:
-  - linux
+  - linux  # TODO: test other OSs?
 dist: xenial   # required for Python >= 3.7
 language: python
 
@@ -16,14 +14,14 @@ python:
   - '2.7'
   - '3.5'
   - '3.6'
-  - '3.7'
+  # - '3.7'  # Explicitly included below for docs building
   # - "3.7-dev"  # 3.7 development branch
   # - "3.8-dev"  # 3.8 development branch
   # - "nightly"  # nightly build
 
 matrix:
   include:
-    - python: '3.7'
+    - python: '3.7'  # Also test docs with latest supported python version
       env: DOCS=1
   allow_failures:
     - python: '2.7'
@@ -36,5 +34,5 @@ install:
 
 script:
   - nox -s lint
-  - nox -s tests  # -- safety
+  - nox -s tests  # -- safety  # safety check only works with same python ver
   - if [[ $DOCS == 1 ]]; then nox -s docs; fi
