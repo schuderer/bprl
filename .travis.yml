@@ -37,7 +37,7 @@ install:
 
 script:
   - nox --non-interactive -s tests-$TRAVIS_PYTHON_VERSION
-  - if [[ $DOCS == 1 ]]; then nox --non-interactive -s docs lint; fi
+  - if [[ $DOCS == 1 ]]; then nox --non-interactive -s lint docs; fi
 # deploy:
 #   provider: pypi
 #   user: theacodes

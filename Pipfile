@@ -12,11 +12,11 @@ pytest-cov = "*"
 twine = "*"
 wheel = "*"
 setuptools = "*"
-flake8 = "*"
-Sphinx = "*"
-sphinx-autobuild = "*"
+#flake8 = "*"
+#Sphinx = "*"
+#sphinx-autobuild = "*"
 gym-fin = {editable = true,path = "."}
-black = "==19.3b0"
+#black = "==19.3b0"
 
 [packages]
 numpy = "*"
