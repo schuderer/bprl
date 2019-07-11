@@ -10,10 +10,10 @@ import logging
 import gym
 from gym import spaces
 from gym.utils import seeding
-
-from gym_fin.envs import utils
-
 import numpy as np
+
+# Application imports
+from gym_fin.envs import utils
 
 
 # logging.debug("some invisible debug message to get logging ""

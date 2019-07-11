@@ -73,13 +73,15 @@ def tests(session):
         "tests",
         "--quiet",
         "--cov=" + package_name,
+        "--cov-config",
+        ".coveragerc",
         "--cov-report=",
     )
     session.install("coverage")
     session.run(
         "coverage",
         "report",
-        "--fail-under=30",
+        "--fail-under=20",
         "--show-missing",  # TODO: get >= 90%
     )
     session.run("coverage", "erase")

@@ -5,8 +5,8 @@ from __future__ import unicode_literals
 
 # Stdlib imports
 import contextlib
-import random
 from functools import lru_cache
+import random
 
 # Third party imports
 from scipy.stats import norm

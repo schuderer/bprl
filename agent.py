@@ -116,7 +116,6 @@ class Agent:
             if exploit and hasattr(self.env, 'render'):
                 self.env.render()
 
-
             action, action_val = self.q_function.select_action(
                                                     prev_observation,
                                                     self.exploration_policy,
