@@ -4,6 +4,7 @@ from gym_fin.envs import utils
 
 def test_temp_seed():
     import random
+
     with utils.temp_seed(7):
         r = random.randint(0, 100)
 

@@ -8,14 +8,15 @@ ipykernel = "*"
 python-language-server = {extras = ["all"],version = "*"}
 line-profiler = "*"
 pytest = "*"
+pytest-cov = "*"
 twine = "*"
 wheel = "*"
 setuptools = "*"
 flake8 = "*"
 Sphinx = "*"
 sphinx-autobuild = "*"
-pytest-cov = "*"
 gym-fin = {editable = true,path = "."}
+black = "==19.3b0"
 
 [packages]
 numpy = "*"

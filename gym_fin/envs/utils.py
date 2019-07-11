@@ -1,10 +1,14 @@
-from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+# Stdlib imports
 import contextlib
 import random
 from functools import lru_cache
+
+# Third party imports
 from scipy.stats import norm
 
 
@@ -40,16 +44,23 @@ try:
                     return func(*args, **kwargs)
                 finally:
                     profiler.print_stats()
+
             return profiled_func
+
         return inner
 
+
 except ImportError:
-    print('Could not import line profiler. '
-          'Accidentally left in production code?')
+    print(
+        "Could not import line profiler. "
+        "Accidentally left in production code?"
+    )
 
     def do_profile(follow=[]):
         def inner(func):
             def nothing(*args, **kwargs):
                 return func(*args, **kwargs)
+
             return nothing
+
         return inner
