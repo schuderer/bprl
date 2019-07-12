@@ -54,7 +54,7 @@ def lint(session):
     session.run("black", "-l", max_line_length, "--check", *autoformat)
     session.run(
         "flake8",
-        f"--max-line-length={max_line_length}",
+        "--max-line-length=" + max_line_length,
         package_name,
         "agents",
         "tests",
