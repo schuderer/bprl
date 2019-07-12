@@ -88,7 +88,7 @@ def coverage(session):
     pytest_args = ["pipenv", "run", "pytest", "tests", "--quiet"]
     session.run(
         *pytest_args,
-        f"--cov={package_name}",
+        "--cov=" + package_name,
         "--cov=agents",
         "--cov-config",
         ".coveragerc",
