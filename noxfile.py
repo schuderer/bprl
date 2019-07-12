@@ -12,6 +12,7 @@ package_name = "gym_fin"
 my_py_ver = "3.7"
 autoformat = [package_name, "agents", "tests", "noxfile.py", "setup.py"]
 max_line_length = "79"
+min_coverage = "3"
 
 
 # For details to use tox (or nox, in extension) with pipenv, see:
@@ -97,7 +98,7 @@ def coverage(session):
     session.run(
         "coverage",
         "report",
-        "--fail-under=3",  # TODO: get >= 90%
+        "--fail-under=" + min_coverage,  # TODO: get >= 90%
         "--show-missing",
     )
     if ON_TRAVIS_CI:

@@ -44,6 +44,9 @@ install:
   # - pipenv --bare install --deploy --dev
 
 script:
+  - ls .git/info
+  - cat schuderer/bprl/.git/info/sparse-checkout
+  - cat .git/info/sparse-checkout
   - nox --non-interactive -s $NOXSESSIONS
 
 # deploy:
