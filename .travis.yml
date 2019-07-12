@@ -44,6 +44,8 @@ install:
   # - pipenv --bare install --deploy --dev
 
 script:
+  - pwd
+  - cat .git/info/sparse-checkout
   - nox --non-interactive -s $NOXSESSIONS
 
 # deploy:

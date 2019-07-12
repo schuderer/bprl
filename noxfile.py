@@ -53,7 +53,7 @@ def lint(session):
     session.run("black", "-l", max_line_length, "--check", *autoformat)
     session.run(
         "flake8",
-        "--max-line-length=" + max_line_length,
+        f"--max-line-length={max_line_length}",
         package_name,
         "agents",
         "tests",
@@ -87,7 +87,7 @@ def coverage(session):
     pytest_args = ["pipenv", "run", "pytest", "tests", "--quiet"]
     session.run(
         *pytest_args,
-        "--cov=" + package_name,
+        f"--cov={package_name}",
         "--cov=agents",
         "--cov-config",
         ".coveragerc",
@@ -97,7 +97,7 @@ def coverage(session):
     session.run(
         "coverage",
         "report",
-        "--fail-under=3",  # TODO: get >= 90%
+        f"--fail-under={min_coverage}",  # TODO: get >= 90%
         "--show-missing",
     )
     if ON_TRAVIS_CI:
