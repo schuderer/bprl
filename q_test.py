@@ -6,19 +6,19 @@ import numpy as np
 import gym
 # import gym_fin.envs.pension_env as penv
 import gym_fin
-import agent
-import value_function
+from agents import q_agent
+from agents import value_function
 import logging
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
-# @do_profile(follow=[agent.Agent.run_episode,
-#                     value_function.ActionValueFunction.select_action,
-#                     value_function.ActionValueFunction.update_value,
-#                     agent.greedy,
-#                     agent.epsilon_greedy])
+# @do_profile(follow=[q_agent.Agent.run_episode,
+#                     value_function.QFunction.select_action,
+#                     value_function.QFunction.update_value,
+#                     q_agent.greedy,
+#                     q_agent.epsilon_greedy])
 def learn(agent, episodes, max_steps):
     overall = 0
     last_100 = np.zeros((100,))
@@ -53,6 +53,7 @@ def learn(agent, episodes, max_steps):
 
 
 # Run Q-Learning
+# fmt: off
 
 env = gym.make('Pension-v0')
 num_bins = 12
@@ -100,21 +101,21 @@ env.seed(seed)  # environment can have its own seed
 random.seed(seed)
 np.random.seed(seed)
 
-q_func = value_function.ActionValueFunction(env,
+q_func = value_function.QFunction(env,
                          default_value=0,
                          discretize_bins=num_bins,
                          discretize_log=log_bins)
 
-agent = agent.Agent(env,
-                 q_function=q_func,
-                 update_policy=agent.greedy,
-                 exploration_policy=agent.epsilon_greedy,
-                 gamma=0.99,
-                 min_alpha=0.1,
-                 min_epsilon=0.1,
-                 alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
-                 epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
-                 )
+agent = q_agent.Agent(env,
+                    q_function=q_func,
+                    update_policy=q_agent.greedy,
+                    exploration_policy=q_agent.epsilon_greedy,
+                    gamma=0.99,
+                    min_alpha=0.1,
+                    min_epsilon=0.1,
+                    alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
+                    epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
+                    )
 
 q_table = learn(agent, episodes=1000, max_steps=20000)
 

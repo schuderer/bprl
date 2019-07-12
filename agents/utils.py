@@ -1,4 +1,3 @@
-
 class LazyStr:
     def __init__(self, func, *args, **kwArgs):
         self.func = func

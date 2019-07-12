@@ -14,6 +14,11 @@ pytest $package
 # Disable useless setuptools-related warning
 export PYTHONDONTWRITEBYTECODE=
 
+# Clean previous build data
+# Common pitfalls:
+# https://blog.ionelmc.ro/2014/06/25/python-packaging-pitfalls/#id18
+rm -rf dist build */*.egg-info *.egg-info
+
 # Build source (sdist) and binary (bdist_wheel) distribution
 python setup.py sdist bdist_wheel
 

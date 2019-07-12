@@ -1,17 +1,20 @@
+# Stdlib imports
 from collections import defaultdict
-import numpy as np
-from discretizer import create_discretizers
 import logging
+
+# Third party imports
+import numpy as np
+
+# Application imports
+from .discretizer import create_discretizers
 
 logger = logging.getLogger(__name__)
 
 
-class ActionValueFunction():
-    def __init__(self, env,
-                 default_value=0,
-                 discretize_bins=12,
-                 discretize_log=False
-                 ):
+class QFunction:
+    def __init__(
+        self, env, default_value=0, discretize_bins=12, discretize_log=False
+    ):
         """Initialize a Tabular Q-Value (State-Action-Value) Approximator.
 
             Params:
@@ -27,13 +30,18 @@ class ActionValueFunction():
 
         self.env = env
         self.default_value = default_value
-        self.state_disc, self.action_disc = \
-            create_discretizers(self.env, discretize_bins, discretize_log)
-        state_value_default = [default_value for _ in range(self.action_disc.space.n)]
+        self.state_disc, self.action_disc = create_discretizers(
+            self.env, discretize_bins, discretize_log
+        )
+        state_value_default = [
+            default_value for _ in range(self.action_disc.space.n)
+        ]
         self.q_table = defaultdict(lambda: state_value_default.copy(), {})
         self.remembered_state_keys = {}
 
-    def select_action(self, observation, policy, policy_params, save=None, load=None):
+    def select_action(
+        self, observation, policy, policy_params, save=None, load=None
+    ):
         """Get action/value tuple of selected action"""
         if load is None:
             discrete_state = self.state_disc.discretize(observation)
@@ -68,14 +76,22 @@ class ActionValueFunction():
             else:  # todo
                 # indices = np.unravel_index(range(statesDisc.n), state_grid.shape)
                 s = self.state_disc.grid[s]
-            logger.info([qTable[self._stateKeyFor(s)][a]
-                            for a in range(self.action_disc.space.n)])
+            logger.info(
+                [
+                    qTable[self._stateKeyFor(s)][a]
+                    for a in range(self.action_disc.space.n)
+                ]
+            )
 
     def print_q_frozenlake(self, qTable):
         for s in range(self.state_disc.space.n):
             s = np.array(s)
-            print([qTable[self._stateKeyFor(s)][a]
-                    for a in range(self.action_disc.space.n)])
+            print(
+                [
+                    qTable[self._stateKeyFor(s)][a]
+                    for a in range(self.action_disc.space.n)
+                ]
+            )
 
     # @staticmethod
     # def _stateKeyFor(discreteObs):
@@ -92,7 +108,7 @@ class ActionValueFunction():
         else:
             d_obs = discreteObs
         # slow using timeit():
-        return '-'.join(map(str, d_obs))
+        return "-".join(map(str, d_obs))
         # 100x faster using timeit(), but only a few percent faster in reality:
         # return reduce(lambda a, v: str(a) + '-' + str(v), discreteObs)
 
