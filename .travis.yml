@@ -9,25 +9,31 @@ git:
   sparse_checkout: ![for]*/*  # Don't check out directories figs, output, runs
 
 os:
-  - linux  # TODO: test other OSs?
-dist: xenial   # required for Python >= 3.7
+  - linux  # TODO: test on other OSs?
+
 language: python
 
-python:
-  - '2.7'
-  - '3.5'
-  - '3.6'
-  # - '3.7'  # Explicitly included below for docs building
-  # - "3.7-dev"  # 3.7 development branch
-  # - "3.8-dev"  # 3.8 development branch
-  # - "nightly"  # nightly build
+# python:
+#   - '2.7'
+#   - '3.5'
+#   - '3.6'
+#   # - '3.7'  # Explicitly included below for docs building
+#   # - "3.7-dev"  # 3.7 development branch
+#   # - "3.8-dev"  # 3.8 development branch
+#   # - "nightly"  # nightly build
 
 matrix:
   include:
+    - python: '3.5'
+      env: NOXSESSIONS="tests-3.5"
+    - python: '3.6'
+      env: NOXSESSIONS="tests-3.6"
     - python: '3.7'  # Also test docs with latest supported python version
-      env: DOCS=1
+      dist: xenial  # required for Python >= 3.7
+      env: NOXSESSIONS="coverage-3.7 lint docs"
   allow_failures:
-    - python: '2.7'
+    - python: '3.6'
+      env: NOXSESSIONS="tests-2.7"
 
 cache: pip
 
@@ -36,8 +42,8 @@ install:
   # - pipenv --bare install --deploy --dev
 
 script:
-  - nox --non-interactive -s tests-$TRAVIS_PYTHON_VERSION
-  - if [[ $DOCS == 1 ]]; then nox --non-interactive -s lint docs; fi
+  - nox --non-interactive -s $NOXSESSIONS
+
 # deploy:
 #   provider: pypi
 #   user: theacodes
