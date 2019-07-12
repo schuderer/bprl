@@ -6,7 +6,7 @@
 #     master
 
 git:
-  sparse_checkout: '"![for]*/*"'  # Don't check out directories figs, output, runs
+  sparse_checkout: .travis-sparse-checkout  # Don't check out directories figs, output, runs
 
 os:
   - linux  # TODO: test on other OSs?
