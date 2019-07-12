@@ -1,5 +1,5 @@
 The gym-fin library for OpenAI Gym
-**********************************
+**************************************************************************
 
 .. image:: https://travis-ci.org/schuderer/bprl.svg?branch=master
     :target: https://travis-ci.org/schuderer/bprl

@@ -11,13 +11,13 @@
 
 
 Module gym_fin.pension_env
-==========================
+==========================================================================
 .. automodule:: gym_fin.envs.pension_env
    :members:
 
 
 Module gym_fin.utils
-====================
+==========================================================================
 .. automodule:: gym_fin.envs.utils
    :members:
 
@@ -27,31 +27,31 @@ Module gym_fin.utils
   The agents package still needs to be separated.
 
 Module agents.q_agent
-=====================
+==========================================================================
 .. automodule:: agents.q_agent
   :members:
 
 
 Module agents.value_function
-===========================
+============================
 .. automodule:: agents.value_function
   :members:
 
 
 Module agents.discretizer
-=========================
+==========================================================================
 .. automodule:: agents.discretizer
   :members:
 
 
 Module agents.utils
-==================
+==========================================================================
 .. automodule:: agents.utils
   :members:
 
 
 Indices and tables
-==================
+==========================================================================
 
 * :ref:`genindex`
 * :ref:`modindex`
