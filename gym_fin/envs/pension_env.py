@@ -168,9 +168,9 @@ class PensionEnv(gym.Env):
 
         if year_changed:
             # only do this once per year:
-            self._companies[0].do_company_things()
+            self._companies[0].run_company()
 
-        if self._companies[0].funds < 0:
+        if self._companies[0].funds <= 0:
             reward += 0.0
         else:
             reward += 1.0  # reward for staying alive
@@ -257,8 +257,15 @@ class PensionEnv(gym.Env):
 
 
 # Business objects:
+class InsuranceCompanyError(ValueError):
+    pass
+
+
 class InsuranceCompany:
     """The complete company"""
+
+    running_cost = -2000
+    reputation_recovery = +20
 
     def __init__(self, investing=True):
         self.investing = investing
@@ -275,9 +282,9 @@ class InsuranceCompany:
     # def remove_client(self, client):
     #     self.clients.remove(client)
 
-    def do_company_things(self):
+    def run_company(self):
         # Spend cost to keep doors open
-        self.funds -= 2000
+        self.funds -= InsuranceCompany.running_cost
 
         if self.investing:
             # Calculate investment returns
@@ -298,14 +305,19 @@ class InsuranceCompany:
 
         # Correct reputation
         if self.reputation < 0:
-            self.reputation += 20
+            self.reputation += InsuranceCompany.reputation_recovery
         if self.reputation > 0:
             self.reputation = 0
 
     def damage_reputation(self, damage):
-        self.reputation += damage
+        if damage <= 0:
+            self.reputation += damage
+        else:
+            raise InsuranceCompanyError("Damage must be negative")
 
     def do_debit_premium(self, amount, client):
+        if amount < 0:
+            raise InsuranceCompanyError("Amount must be positive")
         if client.give_or_take(-amount):
             self.funds += amount
             return True  # could get premium from client
@@ -319,9 +331,17 @@ class InsuranceCompany:
         #         print(PensionEnv.year, 'Company', self.company.id,
         #               'has insufficient funds!', file=PensionEnv.logger)
         # else:
-        self.funds -= amount
-        client.give_or_take(amount)
-        return True  # payout went through (always does)
+        if amount < 0:
+            raise InsuranceCompanyError("Amount must be positive")
+        if self.funds >= amount:
+            self.funds -= amount
+            client.give_or_take(amount)
+            return True
+        else:
+            # For now, also carry out transaction if company would go broke
+            self.funds -= amount
+            client.give_or_take(amount)
+            return False
 
 
 class Seq:
@@ -441,7 +461,7 @@ class Client(Seq):
         self.active = False
 
     def give_or_take(self, amount):
-        if self.funds >= amount:
+        if amount >= 0 or self.funds >= -amount:
             self.funds += amount
             self.last_transaction = amount
             return True
