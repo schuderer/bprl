@@ -9,7 +9,24 @@ from functools import lru_cache
 import random
 
 # Third party imports
+import numpy as np
 from scipy.stats import norm
+
+
+def softmax(x):
+    """Compute softmax values for each set of scores in x
+
+    Args:
+        x: iterable of values
+
+    Returns:
+        list of softmax-transformed values
+    """
+    if len(x) == 0:
+        return x
+    # https://stackoverflow.com/questions/34968722/how-to-implement-the-softmax-function-in-python
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0)
 
 
 @contextlib.contextmanager
@@ -51,16 +68,17 @@ try:
 
 
 except ImportError:
-    print(
-        "Could not import line profiler. "
-        "Accidentally left in production code?"
-    )
+    # Could not import line profiler.
 
+    # We want any @do_profile left in the code to raise an exception
     def do_profile(follow=[]):
-        def inner(func):
-            def nothing(*args, **kwargs):
-                return func(*args, **kwargs)
+        raise RuntimeError("Don't use @do_profile in production code")
 
-            return nothing
-
-        return inner
+    # def do_profile(follow=[]):
+    #     def inner(func):
+    #         def nothing(*args, **kwargs):
+    #             return func(*args, **kwargs)
+    #
+    #         return nothing
+    #
+    #     return inner

@@ -14,6 +14,6 @@ try:
     )
 except ModuleNotFoundError as e:
     if os.environ.get("RELAX_IMPORTS") == "true":
-        warnings.warn(e)
+        warnings.warn(str(e))
     else:
         raise e

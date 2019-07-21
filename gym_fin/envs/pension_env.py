@@ -31,20 +31,6 @@ BONDS_VOLATILITY = 5.0 / 100
 np_random = None
 
 
-def softmax(x):
-    """Compute softmax values for each set of scores in x
-
-    Args:
-        x: iterable of values
-
-    Returns:
-        list of softmax-transformed values
-    """
-    # https://stackoverflow.com/questions/34968722/how-to-implement-the-softmax-function-in-python
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum(axis=0)
-
-
 class PensionEnv(gym.Env):
     """The environment.
     TODO: doc, rendering?
@@ -53,7 +39,7 @@ class PensionEnv(gym.Env):
     metadata = {"render.modes": ["human", "ascii"]}  # todo
 
     def __init__(self):
-        self.companies = []
+        self._companies = []
         self.humans = []
         self._curr_human_idx = 0
         self.year = 0
@@ -73,6 +59,10 @@ class PensionEnv(gym.Env):
         # self._cached_new_cdf = {}
         self.seed()
 
+    @property
+    def companies(self):
+        return self._companies
+
     def seed(self, seed=None):
         global np_random
         np_random, seed = seeding.np_random(seed)
@@ -86,7 +76,7 @@ class PensionEnv(gym.Env):
             observation: the initial observation of the space.
             (Initial reward is assumed to be 0.)
         """
-        self.companies = [InsuranceCompany(investing=self.investing)]
+        self._companies = [InsuranceCompany(investing=self.investing)]
         self.humans = [Client(self)]
         self._curr_human_idx = 0
         self.year = 0
@@ -158,7 +148,7 @@ class PensionEnv(gym.Env):
             # Off-limits for the RL algorithm!
             "year": self.year,
             "human": curr_human,
-            "company": self.companies[0],
+            "company": self._companies[0],
         }
 
         # Prepare next step (find next living Client)
@@ -178,9 +168,9 @@ class PensionEnv(gym.Env):
 
         if year_changed:
             # only do this once per year:
-            self.companies[0].do_company_things()
+            self._companies[0].do_company_things()
 
-        if self.companies[0].funds < 0:
+        if self._companies[0].funds < 0:
             reward += 0.0
         else:
             reward += 1.0  # reward for staying alive
@@ -189,7 +179,7 @@ class PensionEnv(gym.Env):
             # 50% chance for new customer on reputation 0
             global np_random
             gets_new_customer = np_random.uniform() < self._new_cdf(
-                self.companies[0].reputation
+                self._companies[0].reputation
             )
             if gets_new_customer:
                 # reward += 10
@@ -197,13 +187,13 @@ class PensionEnv(gym.Env):
                 logger.info(
                     "%s New customer, reputation: %s",
                     self.year,
-                    self.companies[0].reputation,
+                    self._companies[0].reputation,
                 )
             else:
                 logger.info(
                     "%s A human scorned our company, reputation: %s",
                     self.year,
-                    self.companies[0].reputation,
+                    self._companies[0].reputation,
                 )
 
         # Use NEXT observation for returning
@@ -235,7 +225,7 @@ class PensionEnv(gym.Env):
         return False  # year didn't change
 
     def _terminal(self):
-        return self.year > YEARS_IN_EPISODE or self.companies[0].funds < 0
+        return self.year > YEARS_IN_EPISODE or self._companies[0].funds < 0
 
     def _get_observation(self):
         """Get observation (state)
@@ -249,9 +239,9 @@ class PensionEnv(gym.Env):
         return np.array(
             [
                 age,
-                self.companies[0].funds,
-                self.companies[0].reputation,
-                len([c for c in self.companies[0].clients if c.active]),
+                self._companies[0].funds,
+                self._companies[0].reputation,
+                len([c for c in self._companies[0].clients if c.active]),
             ]
         )
 
@@ -278,8 +268,9 @@ class InsuranceCompany:
         self.clients = []
         self.reputation = 0
 
-    def add_client(self, client):
+    def create_membership(self, client):
         self.clients.append(client)
+        return True  # Currently all clients are accepted
 
     # def remove_client(self, client):
     #     self.clients.remove(client)
@@ -315,13 +306,11 @@ class InsuranceCompany:
         self.reputation += damage
 
     def do_debit_premium(self, amount, client):
-        if client.funds < amount:
-            return False  # cannot get premium from client
-        else:
-            client.funds -= amount
+        if client.give_or_take(-amount):
             self.funds += amount
-            client.last_transaction = -amount
             return True  # could get premium from client
+        else:
+            return False  # cannot get premium from client
 
     def do_pay_out(self, amount, client):
         # if (self.company.funds < amount):
@@ -331,8 +320,7 @@ class InsuranceCompany:
         #               'has insufficient funds!', file=PensionEnv.logger)
         # else:
         self.funds -= amount
-        client.funds += amount
-        client.last_transaction = amount
+        client.give_or_take(amount)
         return True  # payout went through (always does)
 
 
@@ -347,8 +335,14 @@ class Seq:
         return cls.seq
 
 
+class ClientError(ValueError):
+    pass
+
+
 class Client(Seq):
     """A client"""
+
+    income_end_age = 67
 
     def __init__(self, envObj):
         self.env = envObj
@@ -365,7 +359,7 @@ class Client(Seq):
         # self._cached_leave_cdf = {}
         # self._cached_death_cdf = {}
         c = self._find_company()
-        self.become_client_of(c)
+        self._become_client_of(c)
 
     def _leave_cdf(self, rep):
         # lru-cached:
@@ -401,18 +395,31 @@ class Client(Seq):
     def _find_company(self):
         global np_random
         reputations = [c.reputation for c in self.env.companies]
-        rep_probs = softmax(reputations)
-        company = np_random.choice(self.env.companies, p=rep_probs)
+        rep_probs = utils.softmax(reputations)
+        try:
+            company = np_random.choice(self.env.companies, p=rep_probs)
+        except ValueError:
+            raise ClientError("There are no companies in the environment.")
         return company
 
-    def become_client_of(self, company):
-        if self.pension_fund is None:
-            company.add_client(self)
+    def _become_client_of(self, company):
+        if self.pension_fund is not None:
+            raise ClientError(
+                "Human {} already client of {}".format(self.id, company)
+            )
+
+        if company.create_membership(self):
             self.pension_fund = company
+        else:
+            raise ClientError(
+                "Client membership for {} refused by {}".format(
+                    self.id, company
+                )
+            )
 
     def _leave(self):
         logger.info(
-            "Goodbye %s Human %n aged %s happiness %s reputation %s",
+            "Goodbye %s Human %s aged %s happiness %s reputation %s",
             self.env.year,
             self.id,
             self.age,
@@ -424,7 +431,7 @@ class Client(Seq):
 
     def _die(self):
         logger.info(
-            "RIP %s Human %n aged %s happiness %s reputation %s",
+            "RIP %s Human %s aged %s happiness %s reputation %s",
             self.env.year,
             self.id,
             self.age,
@@ -433,12 +440,20 @@ class Client(Seq):
         )
         self.active = False
 
+    def give_or_take(self, amount):
+        if self.funds >= amount:
+            self.funds += amount
+            self.last_transaction = amount
+            return True
+        else:
+            return False
+
     def live_one_year(self):
         global np_random
         happiness_change = 0
         self.funds += self.income
 
-        if self.age == 67:
+        if self.age >= Client.income_end_age:
             self.income = 0
 
         if self.age > 25 and self.funds < self.income * 1.75:
@@ -451,7 +466,10 @@ class Client(Seq):
                 self.happiness + happiness_change,
             )
 
-        if self.age > 67 and self.last_transaction < self.expectation:
+        if (
+            self.age > Client.income_end_age
+            and self.last_transaction < self.expectation
+        ):
             happiness_change -= 20
             logger.info(
                 "%s Human %s received %s, " "less than expectation of %s! %s",
@@ -485,7 +503,7 @@ class Client(Seq):
                 company.damage_reputation(self.happiness)
             _angry_threshold = self._leave_cdf(company.reputation)
             angry_enough = np_random.uniform() > _angry_threshold
-            leaving |= self.age < 67 and angry_enough
+            leaving |= self.age < Client.income_end_age and angry_enough
             # if leaving:
             #     Adjusting the regulations
             #     contribTotal = (self.age - 20) * 1500

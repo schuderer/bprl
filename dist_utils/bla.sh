@@ -22,6 +22,9 @@ rm -rf dist build */*.egg-info *.egg-info
 # Build source (sdist) and binary (bdist_wheel) distribution
 python setup.py sdist bdist_wheel
 
+# Check whether the distribution will be accepted
+twine check dist/*
+
 # Upload to test repository (need to create account first)
 twine upload --repository testpypi dist/*
 

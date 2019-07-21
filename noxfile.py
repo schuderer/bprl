@@ -122,7 +122,7 @@ def docs(session):
         "source",
         "build",
     ]
-    if session.interactive:
+    if "monitor" in session.posargs:
         # session.run('pipenv', 'run', 'sphinx-autobuild', *sphinx_args)
         session.install("sphinx-autobuild")
         session.run("sphinx-autobuild", *sphinx_args)
