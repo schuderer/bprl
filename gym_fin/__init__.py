@@ -12,7 +12,8 @@ try:
         kwargs={}
         # See gym.envs.registration:EnvSpec for possible arguments
     )
-except ModuleNotFoundError as e:
+except ImportError as e:
+    # ModuleNotFoundError not available on Python version < 3.6
     if os.environ.get("RELAX_IMPORTS") == "true":
         warnings.warn(str(e))
     else:
