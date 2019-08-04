@@ -421,7 +421,7 @@ def test_pension_env_step_debit_action(do_debit_premium):
     env.reset()
     debit_action = 0
     env.step(debit_action)
-    do_debit_premium.assert_called()
+    # do_debit_premium.assert_called_once()
     assert do_debit_premium.call_count == 1
 
 
@@ -433,7 +433,7 @@ def test_pension_env_step_payout_action(do_pay_out):
     env.reset()
     payout_action = 1
     env.step(payout_action)
-    do_pay_out.assert_called()
+    # do_pay_out.assert_called_once()
     assert do_pay_out.call_count == 1
 
 
