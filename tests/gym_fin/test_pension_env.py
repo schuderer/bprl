@@ -421,7 +421,8 @@ def test_pension_env_step_debit_action(do_debit_premium):
     env.reset()
     debit_action = 0
     env.step(debit_action)
-    do_debit_premium.assert_called_once()
+    do_debit_premium.assert_called()
+    assert do_debit_premium.call_count == 1
 
 
 @mock.patch.object(
@@ -432,7 +433,8 @@ def test_pension_env_step_payout_action(do_pay_out):
     env.reset()
     payout_action = 1
     env.step(payout_action)
-    do_pay_out.assert_called_once()
+    do_pay_out.assert_called()
+    assert do_pay_out.call_count == 1
 
 
 # @mock.patch.object(pension_env.Client, '_leave_cdf', return_value=1.0)
