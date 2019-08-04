@@ -44,7 +44,7 @@ def cached_cdf(int_val, loc, scale):
     return norm.cdf(int_val, loc=loc, scale=scale)
 
 
-try:
+try:  # pragma: no cover
     # Some profiling decorator (for package line_profiler)
     # https://zapier.com/engineering/profiling-python-boss/
     from line_profiler import LineProfiler

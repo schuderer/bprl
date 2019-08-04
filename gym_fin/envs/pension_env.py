@@ -31,6 +31,10 @@ BONDS_VOLATILITY = 5.0 / 100
 np_random = None
 
 
+class PensionEnvError(RuntimeError):
+    pass
+
+
 class PensionEnv(gym.Env):
     """The environment.
     TODO: doc, rendering?
@@ -42,7 +46,7 @@ class PensionEnv(gym.Env):
         self._companies = []
         self.humans = []
         self._curr_human_idx = 0
-        self.year = 0
+        self.year = -1
 
         self.viewer = None
         # observation: [Human's age, Company's funds, reputation,
@@ -77,26 +81,10 @@ class PensionEnv(gym.Env):
             (Initial reward is assumed to be 0.)
         """
         self._companies = [InsuranceCompany(investing=self.investing)]
-        self.humans = [Client(self)]
+        self.humans = [Client.maybe_make_client(self, force=True)]
         self._curr_human_idx = 0
         self.year = 0
         return self._get_observation()
-
-    def _new_cdf(self, rep):
-        # lru_cached:
-        return utils.cached_cdf(int(rep / 100) * 100, 0, 1500)
-
-        # uncached
-        # return norm.cdf(int(rep), loc=0, scale=1500)
-
-        # self-cached
-        # int_val = int(rep)
-        # if int_val in self._cached_new_cdf:
-        #     return self._cached_new_cdf[int_val]
-        # else:
-        #     self._cached_new_cdf[int_val] = norm.cdf(int_val, loc=0,
-        #                                              scale=1500)
-        #     return self._cached_new_cdf[int_val]
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of episode
@@ -115,6 +103,9 @@ class PensionEnv(gym.Env):
                     from the previous action
         """
 
+        if self.year < 0:
+            raise PensionEnvError("Called step() before reset()")
+
         action = -1500 if action == 0 else 12000
 
         reward = 0
@@ -126,7 +117,7 @@ class PensionEnv(gym.Env):
                     -action, curr_human
                 ):
                     logger.info(
-                        "%s Client %s has insufficient " "funds for premium!",
+                        "%s Client %s has insufficient funds for premium!",
                         self.year,
                         curr_human.id,
                     )
@@ -168,7 +159,8 @@ class PensionEnv(gym.Env):
 
         if year_changed:
             # only do this once per year:
-            self._companies[0].run_company()
+            for company in self._companies:
+                company.run_company()
 
         if self._companies[0].funds <= 0:
             reward += 0.0
@@ -176,14 +168,10 @@ class PensionEnv(gym.Env):
             reward += 1.0  # reward for staying alive
 
         if year_changed:  # Human(s) decide whether to become clients
-            # 50% chance for new customer on reputation 0
-            global np_random
-            gets_new_customer = np_random.uniform() < self._new_cdf(
-                self._companies[0].reputation
-            )
-            if gets_new_customer:
+            client = Client.maybe_make_client(self)
+            if client:
                 # reward += 10
-                self.humans.append(Client(self))
+                self.humans.append(client)
                 logger.info(
                     "%s New customer, reputation: %s",
                     self.year,
@@ -378,10 +366,38 @@ class Client(Seq):
         self.active = True
         # self._cached_leave_cdf = {}
         # self._cached_death_cdf = {}
-        c = self._find_company()
-        self._become_client_of(c)
 
-    def _leave_cdf(self, rep):
+    @classmethod
+    def maybe_make_client(cls, env, force=False):
+        global np_random
+        client = cls(env)
+        comp = client._find_company()
+        # 50% chance for new customer on reputation 0
+        if force or np_random.uniform() < client._new_cdf(comp.reputation):
+            client._become_client_of(comp)
+            return client
+        else:
+            return None
+
+    @staticmethod
+    def _new_cdf(rep):
+        # lru_cached:
+        return utils.cached_cdf(int(rep / 100) * 100, 0, 1500)
+
+        # uncached
+        # return norm.cdf(int(rep), loc=0, scale=1500)
+
+        # self-cached
+        # int_val = int(rep)
+        # if int_val in self._cached_new_cdf:
+        #     return self._cached_new_cdf[int_val]
+        # else:
+        #     self._cached_new_cdf[int_val] = norm.cdf(int_val, loc=0,
+        #                                              scale=1500)
+        #     return self._cached_new_cdf[int_val]
+
+    @staticmethod
+    def _leave_cdf(rep):
         # lru-cached:
         return utils.cached_cdf(int(rep / 20) * 20, -1500, 500)
         # uncached
@@ -396,7 +412,8 @@ class Client(Seq):
         #                                                scale=500)
         #     return self._cached_leave_cdf[int_val]
 
-    def _death_cdf(self, age):
+    @staticmethod
+    def _death_cdf(age):
         # lru-cached:
         return utils.cached_cdf(int(age / 2) * 2, 85, 10)
 
@@ -479,7 +496,7 @@ class Client(Seq):
         if self.age > 25 and self.funds < self.income * 1.75:
             happiness_change -= 20
             logger.info(
-                "%s Human %s got debited too much " "w.r.t. funds of %s! %s",
+                "%s Human %s got debited too much w.r.t. funds of %s! %s",
                 self.env.year,
                 self.id,
                 self.income,
@@ -492,7 +509,7 @@ class Client(Seq):
         ):
             happiness_change -= 20
             logger.info(
-                "%s Human %s received %s, " "less than expectation of %s! %s",
+                "%s Human %s received %s, less than expectation of %s! %s",
                 self.env.year,
                 self.id,
                 self.last_transaction,

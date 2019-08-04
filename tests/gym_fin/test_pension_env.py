@@ -2,6 +2,8 @@
 
 # Stdlib imports
 import logging
+from math import floor
+from unittest import mock
 
 # Third-party imports
 from gym.utils import seeding
@@ -51,7 +53,7 @@ def env_company(env):
 @pytest.fixture
 def env_company_client(env_company):
     env, company = env_company
-    return env, company, pension_env.Client(env)
+    return env, company, pension_env.Client.maybe_make_client(env, force=True)
 
 
 @pytest.fixture
@@ -76,17 +78,29 @@ def test_seq():
 ###############################################
 
 
-def test_client_init_empty_env(env):
+def test_client_init(env):
+    _ = pension_env.Client(env)
+
+
+def test_client_factory_empty_env(env):
     with pytest.raises(pension_env.ClientError, match="no companies"):
-        _ = pension_env.Client(env)
+        _ = pension_env.Client.maybe_make_client(env, force=True)
 
 
-def test_client_init_non_empty_env(mocker, env_company):
+def test_client_factory_non_empty_env(mocker, env_company):
     mocker.patch("gym_fin.envs.pension_env.InsuranceCompany.create_membership")
     env, company = env_company
-    client = pension_env.Client(env)
+    client = pension_env.Client.maybe_make_client(env, force=True)
     company.create_membership.assert_called_once_with(client)
     assert client.pension_fund == company
+
+
+def test_client_factory_no_client_because_bad_reputation(mocker, env_company):
+    mocker.patch("gym_fin.envs.pension_env.InsuranceCompany.create_membership")
+    env, company = env_company
+    company.reputation = -9999999999
+    client = pension_env.Client.maybe_make_client(env)
+    assert client is None
 
 
 def test_client_already_client(mocker, env_company_client):
@@ -180,7 +194,7 @@ def test_client_live_one_year_old_pension(mocker, env_company_client):
     initial_happiness = client.happiness
     client.age = pension_env.Client.income_end_age + 1
     print(client.funds, client.expectation)
-    client.give_or_take(+client.expectation)
+    assert client.give_or_take(+client.expectation)
     client.live_one_year()
     assert client.happiness >= initial_happiness
 
@@ -199,7 +213,7 @@ def test_client_live_one_year_young_no_income(mocker, env_company_client):
     initial_happiness = client.happiness
     client.age = pension_env.Client.income_end_age - 1
     # Taking client's income away from them
-    client.give_or_take(-client.income)
+    assert client.give_or_take(-client.income)
     client.live_one_year()
     assert client.happiness < initial_happiness
 
@@ -209,7 +223,7 @@ def test_client_live_one_year_young_more_income(mocker, env_company_client):
     initial_happiness = client.happiness
     client.age = pension_env.Client.income_end_age - 1
     # Doubling client's income
-    client.give_or_take(+client.income)
+    assert client.give_or_take(+client.income)
     client.live_one_year()
     assert client.happiness >= initial_happiness
 
@@ -229,8 +243,7 @@ def test_client_live_one_year_young_no_funds_no_income(
     env, company, client = env_company_client
     initial_happiness = client.happiness
     client.age = pension_env.Client.income_end_age - 1
-    client.funds = 0
-    client.give_or_take(-client.income)
+    client.funds = -client.income
     client.live_one_year()
     assert client.happiness < initial_happiness
 
@@ -346,3 +359,121 @@ def test_insurance_company_do_pay_out(env_company_client):
         pension_env.InsuranceCompanyError, match="must be positive"
     ):
         company.do_pay_out(-1234, client)
+
+
+###############################################
+# PensionEnv
+###############################################
+
+
+def test_pension_env_init():
+    assert pension_env.PensionEnv()
+
+
+def test_pension_env_companies():
+    env = pension_env.PensionEnv()
+    assert len(env.companies) == 0
+    env.reset()
+    assert len(env.companies) > 0
+
+
+def test_pension_env_seed():
+    env = pension_env.PensionEnv()
+    env.seed(0)
+    r1 = pension_env.np_random.choice(range(1000))
+    env.seed(0)
+    r2 = pension_env.np_random.choice(range(1000))
+    assert r1 == r2
+
+
+def test_pension_env_reset():
+    env = pension_env.PensionEnv()
+    env.seed(0)  # PensionEnv start state is currently deterministic, but still
+    s1 = env.reset()
+    for _ in range(100):
+        env.step(env.action_space.sample())
+    env.seed(0)
+    s2 = env.reset()
+    assert (s1 == s2).all()
+
+
+def test_pension_env_render():
+    env = pension_env.PensionEnv()
+    env.render()
+
+
+def test_pension_env_close():
+    env = pension_env.PensionEnv()
+    env.close()
+
+
+def test_pension_env_step_before_reset():
+    env = pension_env.PensionEnv()
+    with pytest.raises(pension_env.PensionEnvError, match="before reset"):
+        env.step(env.action_space.sample())
+
+
+@mock.patch.object(
+    pension_env.InsuranceCompany, "do_debit_premium", return_value=True
+)
+def test_pension_env_step_debit_action(do_debit_premium):
+    env = pension_env.PensionEnv()
+    env.reset()
+    debit_action = 0
+    env.step(debit_action)
+    do_debit_premium.assert_called_once()
+
+
+@mock.patch.object(
+    pension_env.InsuranceCompany, "do_pay_out", return_value=True
+)
+def test_pension_env_step_payout_action(do_pay_out):
+    env = pension_env.PensionEnv()
+    env.reset()
+    payout_action = 1
+    env.step(payout_action)
+    do_pay_out.assert_called_once()
+
+
+# @mock.patch.object(pension_env.Client, '_leave_cdf', return_value=1.0)
+# @mock.patch.object(pension_env.Client, '_death_cdf', return_value=0.0)
+# @mock.patch.object(pension_env.Client, '_new_cdf', return_value=0.0)
+# @mock.patch.object(pension_env.Client, 'live_one_year')
+# @mock.patch.object(pension_env.InsuranceCompany, 'run_company')
+def test_pension_env_step_new_years(
+    mocker
+):  # _leave_cdf, _death_cdf, _new_cdf, live_one_year, run_company):
+    """Given N Clients, env.year will advance with every Nth step(),
+    InsuranceCompany.run_company will be called once per year and
+    Client.live_one_year will be called once for each step.
+    """
+    # Patch Client object to never leave nor join nor die
+    mocker.patch.object(pension_env.Client, "_leave_cdf", return_value=1.0)
+    mocker.patch.object(pension_env.Client, "_death_cdf", return_value=0.0)
+    mocker.patch.object(pension_env.Client, "_new_cdf", return_value=0.0)
+
+    run_company = mocker.patch.object(
+        pension_env.InsuranceCompany, "run_company"
+    )
+
+    env = pension_env.PensionEnv()
+    env.reset()
+    first_client = env.humans[0]
+    second_client = pension_env.Client.maybe_make_client(env, force=True)
+    env.humans.append(second_client)
+    num_clients = len(env.humans)  # There are 2 clients
+    print("num_clients", num_clients)
+    mocker.spy(first_client, "live_one_year")
+    mocker.spy(second_client, "live_one_year")
+    steps = 10
+    y0 = env.year  # probably 0
+    debit_action = 0
+    for _ in range(steps):
+        env.step(debit_action)
+    y5 = env.year
+    expected_year_changes = floor(steps / num_clients)
+    #       0 + floor(10 / 2)         ==  5
+    assert y0 + expected_year_changes == y5
+    assert run_company.call_count == y0 + expected_year_changes
+    assert first_client.live_one_year.call_count == steps / num_clients
+    assert second_client.live_one_year.call_count == steps / num_clients
