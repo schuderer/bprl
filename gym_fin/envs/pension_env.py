@@ -228,8 +228,8 @@ class PensionEnv(gym.Env):
             [
                 age,
                 self._companies[0].funds,
-                self._companies[0].reputation,
-                len([c for c in self._companies[0].clients if c.active]),
+                # self._companies[0].reputation,
+                # len([c for c in self._companies[0].clients if c.active]),
             ]
         )
 

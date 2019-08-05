@@ -9,8 +9,6 @@ from unittest import mock
 from gym.utils import seeding
 import pytest
 
-# from pytest_mock import mocker
-
 # Application level imports
 from gym_fin.envs import pension_env
 
@@ -395,6 +393,12 @@ def test_pension_env_reset():
     env.seed(0)
     s2 = env.reset()
     assert (s1 == s2).all()
+
+
+def test_pension_env_observation_shape():
+    env = pension_env.PensionEnv()
+    s = env.reset()
+    assert s.shape[0] == env.observation_space.low.shape[0]
 
 
 def test_pension_env_render():
