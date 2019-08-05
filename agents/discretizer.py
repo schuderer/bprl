@@ -30,8 +30,8 @@ class Discretizer:
     to the parameters provided when creating this object.
     """
 
-    # adapted from https://github.com/udacity/deep-reinforcement-learning/blob/
-    #                       master/discretization/Discretization_Solution.ipynb
+    # adapted from
+    # https://github.com/udacity/deep-reinforcement-learning/blob/master/discretization/Discretization_Solution.ipynb
 
     def __init__(self, env_space, num_bins, log_bins):
         if type(env_space) is gym.spaces.box.Box:
@@ -49,7 +49,7 @@ class Discretizer:
             self.grid = None
             self.space = env_space
         else:
-            raise NotImplementedError(
+            raise TypeError(
                 "Can only work with Discrete or Box type state spaces."
             )
 
@@ -57,10 +57,21 @@ class Discretizer:
         if self.grid is None:
             return np.reshape(np.array(vals), (1,))
         else:
+            vals_array = np.array(vals)
+            if (
+                len(vals_array.shape) != 1
+                or vals_array.shape[0] != self.grid.shape[0]
+            ):
+                raise ValueError(
+                    "Observation to discretize must have shape "
+                    "({},), but has shape {}".format(
+                        self.grid.shape[0], vals_array.shape
+                    )
+                )
             return np.array(
                 list(
                     int(np.digitize(s, g, right=True))
-                    for s, g in zip(np.array(vals), self.grid)
+                    for s, g in zip(vals_array, self.grid)
                 )
             )
 
@@ -130,9 +141,9 @@ class Discretizer:
                     l2 = 1 * 10 ** min(
                         (high_mag - sqrt(b2) / 2), 0
                     )  # 0 would lead to nan
-                    grid_below_0 = space_func(l1, h1, b1 + 1)[0:-1]
+                    grid_below_0 = space_func(l1, h1, int(b1) + 1)[0:-1]
                     # print("below", grid_below_0)
-                    grid_above_0 = space_func(l2, h2, b2 + 1)
+                    grid_above_0 = space_func(l2, h2, int(b2) + 1)
                     # print("above", grid_above_0)
                     grid[dim] = np.hstack((grid_below_0, grid_above_0))
         else:
@@ -146,82 +157,3 @@ class Discretizer:
         for l, h, b, splits in zip(low, high, bins, grid):
             logger.warning("    [{}, {}] / {} => {}".format(l, h, b, splits))
         return grid
-
-
-if __name__ == "__main__":
-    print("linear:")
-    d = Discretizer([2, 2], [256, 1024], [8, 8])
-    print("testGrid 1:")
-    print(d.grid)
-    print("discretize [40, 12]:")
-    testDisc = d.discretize([40, 12])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("end of test 1")
-    d = Discretizer([-128, -512], [128, 512], [8, 8])
-    print("testGrid 2:")
-    print(d.grid)
-    print("discretize min values [-128, -512]:")
-    testDisc = d.discretize([-128, -512])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize max values [128, 512]:")
-    testDisc = d.discretize([128, 512])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize below min values [-1000, -10000]:")
-    testDisc = d.discretize([-1000, -10000])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize above max values [10000, 1000]:")
-    testDisc = d.discretize([10000, 1000])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("end of test 2")
-    print("\n\nlog:")
-    d = Discretizer([2, 2], [256, 1024], [8, 8], log=True)
-    print("testGrid 1:")
-    print(d.grid)
-    print("discretize [40, 12]:")
-    testDisc = d.discretize([40, 12])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("end of test 1")
-    d = Discretizer([-128, -512], [128, 512], [8, 8], log=True)
-    print("testGrid 2:")
-    print(d.grid)
-    print("discretize min values [-128, -512]:")
-    testDisc = d.discretize([-128, -512])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize max values [128, 512]:")
-    testDisc = d.discretize([128, 512])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize below min values [-1000, -10000]:")
-    testDisc = d.discretize([-1000, -10000])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("discretize above max values [10000, 1000]:")
-    testDisc = d.discretize([10000, 1000])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))
-    print("end of test 2\n")
-    d = Discretizer([-1], [1], [8], log=True)
-    print("testGrid 3:")
-    print(d.grid)
-    print("discretize values [-0.2]:")
-    testDisc = d.discretize([-0.2])
-    print(testDisc)
-    print("undiscretize:")
-    print(d.undiscretize(testDisc))

@@ -1,3 +1,5 @@
+"""Tests for the agents package"""
+
 import tests.utils as test_utils
 
 # NOTE: import modules to test in the test functions, not here!

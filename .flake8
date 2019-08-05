@@ -3,4 +3,4 @@
 ignore = E501, W503
 # Imports
 import-order-style = google
-application-import-names = gym_fin,tests
+application-import-names = gym_fin,agents,tests
