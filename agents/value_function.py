@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class QFunction:
+    """Tabular Q-Value (State-Action-Value) Approximator"""
+
     def __init__(
         self, env, default_value=0, discretize_bins=12, discretize_log=False
     ):
@@ -69,7 +71,8 @@ class QFunction:
         discrete_action = self.action_disc.discretize(action)
         self.q_table[state_key][int(discrete_action)] = value
 
-    def print_q(self, qTable):
+    def print_q(self, q_table=None):
+        q_table = q_table or self.q_table
         for s in range(self.state_disc.space.n):
             if self.state_disc.grid is None:
                 s = np.array(s)
@@ -78,17 +81,18 @@ class QFunction:
                 s = self.state_disc.grid[s]
             logger.info(
                 [
-                    qTable[self._stateKeyFor(s)][a]
+                    q_table[self._stateKeyFor(s)][a]
                     for a in range(self.action_disc.space.n)
                 ]
             )
 
-    def print_q_frozenlake(self, qTable):
+    def print_q_frozenlake(self, q_table=None):
+        q_table = q_table or self.q_table
         for s in range(self.state_disc.space.n):
             s = np.array(s)
             print(
                 [
-                    qTable[self._stateKeyFor(s)][a]
+                    q_table[self._stateKeyFor(s)][a]
                     for a in range(self.action_disc.space.n)
                 ]
             )
