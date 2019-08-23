@@ -18,13 +18,15 @@ setuptools = "*"
 #sphinx-autobuild = "*"
 gym-fin = {editable = true,path = "."}
 #black = "==19.3b0"
+matplotlib = "*"
+seaborn = "*"
+stable-baselines = {extras = ["mpi"],version = "*"}
+tensorflow = "*"
 
 [packages]
 numpy = "*"
 gym = "*"
 pandas = "*"
-matplotlib = "*"
-seaborn = "*"
 
 [requires]
 python_version = "3.6"

@@ -71,39 +71,31 @@ class QFunction:
         discrete_action = self.action_disc.discretize(action)
         self.q_table[state_key][int(discrete_action)] = value
 
-    def print_q(self, q_table=None):
-        q_table = q_table or self.q_table
-        for s in range(self.state_disc.space.n):
-            if self.state_disc.grid is None:
-                s = np.array(s)
-            else:  # todo
-                # indices = np.unravel_index(range(statesDisc.n), state_grid.shape)
-                s = self.state_disc.grid[s]
-            logger.info(
-                [
-                    q_table[self._stateKeyFor(s)][a]
-                    for a in range(self.action_disc.space.n)
-                ]
-            )
-
-    def print_q_frozenlake(self, q_table=None):
-        q_table = q_table or self.q_table
-        for s in range(self.state_disc.space.n):
-            s = np.array(s)
-            print(
-                [
-                    q_table[self._stateKeyFor(s)][a]
-                    for a in range(self.action_disc.space.n)
-                ]
-            )
-
-    # @staticmethod
-    # def _stateKeyFor(discreteObs):
-    #     if discreteObs.shape == ():
-    #         d_obs = np.reshape(discreteObs, (1,))
-    #     else:
-    #         d_obs = discreteObs
-    #     return d_obs.prod()  # TODO: How is this slower than string concatenation???
+    # def print_q(self, q_table=None):
+    #     q_table = q_table or self.q_table
+    #     for s in range(self.state_disc.space.n):
+    #         if self.state_disc.grid is None:
+    #             s = np.array(s)
+    #         else:  # todo
+    #             # indices = np.unravel_index(range(statesDisc.n), state_grid.shape)
+    #             s = self.state_disc.grid[s]
+    #         logger.info(
+    #             [
+    #                 q_table[self._stateKeyFor(s)][a]
+    #                 for a in range(self.action_disc.space.n)
+    #             ]
+    #         )
+    #
+    # def print_q_frozenlake(self, q_table=None):
+    #     q_table = q_table or self.q_table
+    #     for s in range(self.state_disc.space.n):
+    #         s = np.array(s)
+    #         print(
+    #             [
+    #                 q_table[self._stateKeyFor(s)][a]
+    #                 for a in range(self.action_disc.space.n)
+    #             ]
+    #         )
 
     @staticmethod
     def _stateKeyFor(discreteObs):
