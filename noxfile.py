@@ -15,10 +15,26 @@ max_line_length = "79"
 min_coverage = "3"
 
 
+def pipenv(session, *args, **kwargs):
+    # print("virtualenv:", session.virtualenv.location)
+    env = {"VIRTUAL_ENV": session.virtualenv.location}
+    session.run("pipenv", *args, **kwargs, env=env)
+
+
 # For details to use tox (or nox, in extension) with pipenv, see:
 # https://docs.pipenv.org/en/latest/advanced/#tox-automation-project
 def install_requirements(session, dev=True, safety_check=True):
     session.install("pipenv")
+
+    # # Make sure we are re-using the outer environment:
+    # print("Check Nox environment:")
+    # session.run("which", "python", external=True)
+    # session.run("python", "--version")
+    # print("Check Pipenv environment:")
+    # pipenv(session, "run", "which", "python")
+    # pipenv(session, "run", "python", "--version")
+    # pipenv(session, "run", "echo", "$VIRTUAL_ENV")
+
     pipenv_args = [
         "--bare",
         "install",
@@ -28,10 +44,10 @@ def install_requirements(session, dev=True, safety_check=True):
     if dev:
         pipenv_args.append("--dev")
     # Fails if Pipfile.lock is out of date, instead of generating a new one:
-    session.run("pipenv", *pipenv_args)
+    pipenv(session, *pipenv_args)
 
     if safety_check:
-        session.run("pipenv", "check")
+        pipenv(session, "check")
 
     # # Now that --deploy ensured that Pipfile.lock is current and
     # # we checked for known vulnerabilities, generate requirements.txt:
@@ -63,7 +79,7 @@ def lint(session):
 
 # @nox.parametrize("django", ["1.9", "2.0"])
 # In Travis-CI: session selected via env vars
-@nox.session(python=["2.7", "3.5", "3.6", my_py_ver])
+@nox.session(python=["3.6", my_py_ver])
 def tests(session):
     """Run the unit test suite"""
     # already part of dev-Pipfile
@@ -72,8 +88,8 @@ def tests(session):
     install_requirements(session, safety_check=safety_check)
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
-    pytest_args = ["pipenv", "run", "pytest", "tests", "--quiet"]
-    session.run(*pytest_args)
+    pytest_args = ["pytest", "tests", "--quiet"]
+    pipenv(session, "run", *pytest_args)
 
 
 @nox.session(python=my_py_ver)
@@ -85,8 +101,10 @@ def coverage(session):
     install_requirements(session, safety_check=safety_check)
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
-    pytest_args = ["pipenv", "run", "pytest", "tests", "--quiet"]
-    session.run(
+    pytest_args = ["pytest", "tests", "--quiet"]
+    pipenv(
+        session,
+        "run",
         *pytest_args,
         "--cov=" + package_name,
         "--cov=agents",
