@@ -22,7 +22,7 @@ gym-fin = {editable = true,path = "."}
 #black = "==19.3b0"
 matplotlib = "*"
 seaborn = "*"
-stable-baselines = {extras = ["mpi"],version = "*"}
+#stable-baselines = {extras = ["mpi"],version = "*"}
 tensorflow = "*"
 
 [packages]
