@@ -446,9 +446,8 @@ def test_pension_env_step_payout_action(do_pay_out):
 # @mock.patch.object(pension_env.Client, '_new_cdf', return_value=0.0)
 # @mock.patch.object(pension_env.Client, 'live_one_year')
 # @mock.patch.object(pension_env.InsuranceCompany, 'run_company')
-def test_pension_env_step_new_years(
-    mocker
-):  # _leave_cdf, _death_cdf, _new_cdf, live_one_year, run_company):
+def test_pension_env_step_new_years(mocker):
+    # _leave_cdf, _death_cdf, _new_cdf, live_one_year, run_company):
     """Given N Clients, env.year will advance with every Nth step(),
     InsuranceCompany.run_company will be called once per year and
     Client.live_one_year will be called once for each step.

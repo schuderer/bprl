@@ -113,9 +113,8 @@ class Agent:
         policy_params = {"epsilon": epsilon}
 
         # just for caching:
-        prev_cache_key = (
-            True
-        )  # just some hashable value we can swap between two states
+        # True = just some hashable value we can swap between two states
+        prev_cache_key = True
         self.q_function.select_action(
             prev_observation,
             self.update_policy,
@@ -177,9 +176,8 @@ class Agent:
                 curr_best_value,
             )
 
-            qValOld = (
-                action_val
-            )  # the original value of the action that we took to get here
+            # the original value of the action that we took to get here
+            qValOld = action_val
             td_error = (reward + self.gamma * curr_best_value) - qValOld
             qValNew = qValOld + alpha * td_error
             logger.debug(
