@@ -13,7 +13,7 @@ try:
         # See gym.envs.registration:EnvSpec for possible arguments
     )
 
-    from random import choices
+    from random import choice
     import string
     import gym_fin.envs
     from gym_fin.envs.sim_env import env_metadata, generate_env
@@ -21,7 +21,9 @@ try:
 
     for step_function in env_metadata["step_views"].keys():
         env_cls = generate_env(FinBaseSimulation(), step_function)
-        cls_name = "_" + "".join(choices(string.ascii_uppercase, k=10))
+        cls_name = "_" + "".join(
+            choice(string.ascii_uppercase) for _ in range(10)
+        )
         setattr(gym_fin.envs, cls_name, env_cls)
         # print(dir(gym_fin.envs))
         # print(cls_name)

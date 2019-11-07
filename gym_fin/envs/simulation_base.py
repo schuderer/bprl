@@ -83,7 +83,7 @@ class FinBaseSimulation(SimulationInterface):
             and len([e for e in self.entities if e.active]) > 0
         ):
             for i, e in enumerate(self.entities):
-                logger.info(f"Entity {i} doing its thing...")
+                logger.info("Entity {} doing its thing...".format(i))
                 e.perform_increment()
 
     def reset(self):
@@ -152,9 +152,8 @@ class Resource(Seq):
         self.allow_negative = allow_negative
 
     def __repr__(self):
-        return (
-            f"Resource(asset_type={self.asset_type}, number={self.number}, "
-            f"allow_negative={self.allow_negative})"
+        return "Resource(asset_type={}, number={}, allow_negative={})".format(
+            self.asset_type, self.number, self.allow_negative
         )
 
     def to_obs(self):
@@ -188,8 +187,9 @@ class Resource(Seq):
         new_number = self.number - number
         if not self.allow_negative and new_number < 0:
             raise DeniedError(
-                f"Resource {self.id} must not become negative "
-                f"(when subtracting {number} from {self.number})"
+                "Resource {} must not become negative (when subtracting {} from {})".format(
+                    self.id, number, self.number
+                )
             )
         else:
             self.number = new_number
@@ -208,10 +208,10 @@ class Resource(Seq):
         """
         if res.asset_type != self.asset_type:
             raise DeniedError(
-                f"Asset type {res.asset_type} of Resource "
-                f"{res.id} cannot be put into Resource {self.id} "
-                f"of asset type {self.asset_type}. Implicit "
-                f"Recource conversions are not allowed."
+                "Asset type {} of Resource ".format(res.asset_type)
+                + "{} cannot be put into Resource {} ".format(res.id, self.id)
+                + "of asset type {}. Implicit ".format(self.asset_type)
+                + "Recource conversions are not allowed."
             )
         else:
             # drain original resource and give it chance to raise errors:
@@ -228,7 +228,7 @@ class Entity(Seq):
         self.active = True
 
     def __repr__(self):
-        return f"Entity({self.id})"
+        return "Entity({})".format(self.id)
 
     def entity_relations(self, entity: "Entity"):
         return {k: r for k, r in self.relations.items() if r.entity == entity}
@@ -299,12 +299,12 @@ class Entity(Seq):
                 if r.role.name == role_name
             ]:
                 raise DeniedError(
-                    f"{role_name}-role relation already exists "
-                    f"between {self} and {requesting_entity}"
+                    "{}-role relation already exists ".format(role_name)
+                    + "between {} and {}".format(self, requesting_entity)
                 )
             # test example
             elif role_name == "client" and len(self.resources) > 10:
-                raise DeniedError(f"We don't take any more clients")
+                raise DeniedError("We don't take any more clients")
 
     def request_relation(
         self, role_name: str, requesting_entity: "Entity", key_to_use: str
@@ -318,8 +318,8 @@ class Entity(Seq):
         if role.inverse:
             if key_to_use in self.relations:
                 raise ValueError(
-                    f"key_to_use {key_to_use} already exists "
-                    f"in self.resources of {self}"
+                    "key_to_use {} already exists ".format(key_to_use)
+                    + "in self.resources of {}".format(self)
                 )
             inv_role = ROLES[role.inverse]
             back_rel = Relation(inv_role, requesting_entity)

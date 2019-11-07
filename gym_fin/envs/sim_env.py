@@ -57,7 +57,7 @@ def make_step(
         else:
             action_val = action_space_mapping[action]
             if isclass(action_val) and issubclass(action_val, Exception):
-                raise action_val(f"action {action}")
+                raise action_val("action {}".format(action))
             else:
                 return action_val
 
@@ -73,12 +73,12 @@ def make_step(
 
     def decorator(func):
         module = __name__
-        name = f"{module}.{func.__qualname__}"
+        name = "{}.{}".format(module, func.__qualname__)
 
         # pre-register step_view
         global env_metadata
         if name in env_metadata["step_views"]:
-            raise RuntimeError(f"Function {name} registered twice.")
+            raise RuntimeError("Function {} registered twice.".format(name))
         else:
             env_metadata["step_views"][name] = {
                 "observation_space": observation_space,
@@ -129,7 +129,7 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
         step_view = step_views[name]
         if "callback" in step_view and step_view["callback"]:
             logger.warn(
-                f"Overwriting existing callback for {name}"
+                "Overwriting existing callback for {}".format(name)
             )  # todo log
         step_view.update(
             {
@@ -139,9 +139,8 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
         )
     else:
         raise ValueError(
-            f"No such registered function: '{name}'. "
-            f"Existing functions are: {list(step_views.keys())}"
-        )
+            "No such registered function: '{}'. Existing functions are: {}"
+        ).format(name, list(step_views.keys()))
 
 
 # https://stackoverflow.com/a/18506625/2654383
@@ -161,13 +160,13 @@ def generate_env(world: SimulationInterface, name: str):
         def run_user_code(self):
             self.user_done.clear()
             self.sim_done.set()
-            logger.debug(f"callback waiting for turn...")
+            logger.debug("callback waiting for turn...")
             self.user_done.wait()
 
         def run_simulation_code(self):
             self.sim_done.clear()
             self.user_done.set()
-            logger.debug(f"user code waiting for turn...")
+            logger.debug("user code waiting for turn...")
             self.sim_done.wait()
 
         def simulation_async(self, simulation_obj):
@@ -201,11 +200,15 @@ def generate_env(world: SimulationInterface, name: str):
                 self.obs = obs
                 self.reward = reward
                 self.info = info
-                logger.debug(f"callback observation={obs} releasing turn")
+                logger.debug(
+                    "callback observation={} releasing turn".format(obs)
+                )
                 self.run_user_code()
                 # We know the action now
                 logger.debug(
-                    f"callback {obs}: got turn, returning action {self.action}"
+                    "callback {}: got turn, returning action {}".format(
+                        obs, self.action
+                    )
                 )
                 return self.action
 
@@ -232,7 +235,7 @@ def generate_env(world: SimulationInterface, name: str):
             logger.debug("reset: releasing turn")
             self.run_simulation_code()
             # We know the observation now
-            logger.debug(f"reset got turn, returning obs {self.obs}")
+            logger.debug("reset got turn, returning obs {}".format(self.obs))
             return self.obs  # is set because callback has been called
 
         def step(self, action):
@@ -252,12 +255,14 @@ def generate_env(world: SimulationInterface, name: str):
                         from the previous action
             """
             self.action = action
-            logger.debug(f"step: action={action} releasing turn")
+            logger.debug("step: action={} releasing turn".format(action))
             self.run_simulation_code()
             # We know the observation, reward, info now
             self.done = not self.simulation_thread.is_alive()
             logger.debug(
-                f"step: got turn, returning (obs={self.obs}, done={self.done})"
+                "step: got turn, returning (obs={}, done={})".format(
+                    self.obs, self.done
+                )
             )
             return (
                 self.obs,

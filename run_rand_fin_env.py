@@ -17,11 +17,11 @@ env = gym.make("gym_fin:FinBase-gym_fin.envs.sim_env.Entity.choose_some_action-v
 
 obs = env.reset()
 obs_space = env.observation_space
-print(f"obs_space={obs_space}")
+print("obs_space={}".format(obs_space))
 action_space = env.action_space
-print(f"action_space={action_space}")
+print("action_space={}".format(action_space))
 
 done = False
 while not done:
     obs, reward, done, info = env.step(action_space.sample())
-    print(f"obs {obs}, reward {reward}, done {done}, info {info}")
+    print("obs {}, reward {}, done {}, info {}".format(obs, reward, done, info))
