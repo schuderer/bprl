@@ -13,6 +13,7 @@ my_py_ver = "3.7"
 autoformat = [package_name, "agents", "tests", "noxfile.py", "setup.py"]
 max_line_length = "79"
 min_coverage = "3"
+pytest_args = ["pytest", "tests", "--quiet"]  # , "--log-cli-level=10"]
 
 
 def pipenv(session, *args, **kwargs):
@@ -88,7 +89,6 @@ def tests(session):
     install_requirements(session, safety_check=safety_check)
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
-    pytest_args = ["pytest", "tests", "--quiet"]
     pipenv(session, "run", *pytest_args)
 
 
@@ -101,7 +101,6 @@ def coverage(session):
     install_requirements(session, safety_check=safety_check)
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
-    pytest_args = ["pytest", "tests", "--quiet"]
     pipenv(
         session,
         "run",

@@ -1,13 +1,18 @@
 # from __future__ import annotations
-# from dataclasses import dataclass
+
+# Stdlib imports
+# from dataclasses import dataclass  # >=3.7
 import logging
 from typing import Dict, Optional
 
+# Third-party imports
 from gym import spaces
 import numpy as np
 
+# Application-level imports
+from gym_fin.envs.sim_env import expose_to_plugins
 from gym_fin.envs.sim_env import make_step
-from gym_fin.envs.simulation_interface import SimulationInterface
+from gym_fin.envs.sim_interface import SimulationInterface
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +65,7 @@ class FinBaseSimulation(SimulationInterface):
     environment-generating functionality (make_step(), get_env(), etc.)
     """
 
-    initial_num_entities = 5
+    initial_num_entities = 3
 
     def __init__(self):
         self.entities = []
@@ -344,6 +349,7 @@ class Entity(Seq):
         # (method runs only if no agent is attached here)
         return "B"
 
+    @expose_to_plugins
     def perform_increment(self):
         """Performs one time-increment of actions for this Entity"""
         decision = self.choose_some_action()

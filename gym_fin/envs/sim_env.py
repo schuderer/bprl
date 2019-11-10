@@ -1,18 +1,29 @@
-from inspect import isclass
+# Stdlib imports
+from inspect import isclass, signature
 import logging
 from threading import Event, Thread
 
-# Todo: make it work with gym's "make" command
+# Third-party imports
 import gym
 from gym import spaces
 
-from gym_fin.envs.simulation_interface import SimulationInterface
+# Application-level imports
+from gym_fin.envs.sim_interface import SimulationInterface
 
 logger = logging.getLogger(__name__)
 
 env_metadata = {
     "step_views": {},
 }
+
+
+def qualname(func):
+    if hasattr(func, "_name"):
+        return func._name
+    elif hasattr(func, "__module__"):
+        return f"{func.__module__}.{func.__qualname__}"
+    else:
+        return f"{repr(func)}"
 
 
 # maybe later: several step() interfacing points are possible, so provide
@@ -72,8 +83,7 @@ def make_step(
         )
 
     def decorator(func):
-        module = __name__
-        name = f"{module}.{func.__qualname__}"
+        name = qualname(func)
 
         # pre-register step_view
         global env_metadata
@@ -128,9 +138,7 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
     if name in step_views:
         step_view = step_views[name]
         if "callback" in step_view and step_view["callback"]:
-            logger.warn(
-                f"Overwriting existing callback for {name}"
-            )  # todo log
+            logger.warning(f"Overwriting existing callback for {name}")
         step_view.update(
             {
                 "callback": callback,
@@ -280,3 +288,162 @@ def generate_env(world: SimulationInterface, name: str):
                 self.viewer = None
 
     return CallbackEnv
+
+
+# Plugin-ification code
+
+handlers = {}
+_roles = ["before", "after", "instead"]
+
+
+class ChangedArgs:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+    def __repr__(self):
+        return f"ChangedArgs({repr(self.args)}, {repr(self.kwargs)})"
+
+
+class ChangedResult:
+    def __init__(self, result):
+        self.result = result
+
+    def __repr__(self):
+        return f"ChangedResult({repr(self.result)})"
+
+
+def call_with_handlers(func, name, args=(), kwargs={}):
+    my_handlers = handlers[name]
+    if "instead" in my_handlers:
+        return my_handlers["instead"](*args, **kwargs)
+    else:
+        if "before" in my_handlers:
+            before_result = my_handlers["before"](*args, **kwargs)
+            if isinstance(before_result, ChangedArgs):
+                args = before_result.args
+                kwargs = before_result.kwargs
+        result = func(*args, **kwargs)
+        if "after" in my_handlers:
+            after_result = my_handlers["after"](
+                *args, **kwargs, _result=result
+            )
+            if isinstance(after_result, ChangedResult):
+                result = after_result.result
+        return result
+
+
+class IteratorWrapper:
+    def __init__(self, name, inner_iterator):
+        print(f"creating iterator for {name}: {inner_iterator}")
+        self._name = name
+        self.inner = inner_iterator
+
+    def __next__(self):
+        print(f"__next__ has been called for {self._name}")
+        print(f"call_with_handlers({self.inner.__next__}, {self._name})")
+        return call_with_handlers(
+            self.inner.__class__.__next__, self._name, args=(self.inner,)
+        )
+
+    def __repr__(self):
+        return f"IteratorWrapper('{self._name}', {repr(self.inner)})"
+
+
+class IterableWrapper:
+    def __init__(self, name, inner_iterable):
+        self._name = name
+        self.inner = inner_iterable
+        if hasattr(self.inner, "__getitem__"):
+            # setattr(self, "__getitem__", self.__optional_getitem__)
+            self.__getitem__ = self.__optional_getitem__
+
+    def __optional_getitem__(self, key):
+        return call_with_handlers(
+            self.inner.__class__.__getitem__,
+            self._name,
+            args=(self.inner, key),
+        )
+
+    def __iter__(self):
+        print(f"returning iterator for name {self._name}, inner {self.inner}")
+        inner_iterator = iter(self.inner)
+        return IteratorWrapper(self._name, inner_iterator)
+
+    def __repr__(self):
+        return f"IterableWrapper('{self._name}', {repr(self.inner)})"
+
+
+def expose_to_plugins(func_or_iterable, override_name=None):
+    name = override_name or qualname(func_or_iterable)
+    handlers[name] = handlers[name] if name in handlers else {}
+    try:
+        _ = iter(func_or_iterable)
+        # Iterable
+        logging.debug(f"Exposing iterable {name} to plugins")
+        return IterableWrapper(name, func_or_iterable)
+    except TypeError:
+        # Function
+        def func_wrapper(*args, **kwargs):
+            return call_with_handlers(func_or_iterable, name, args, kwargs)
+
+        func_wrapper._name = name
+        handlers[name]["_signature"] = signature(func_or_iterable)
+        logging.debug(f"Exposing function {name} to plugins:")
+        return func_wrapper
+
+
+def attach_handler(handler_func, to_func, role):
+    assert callable(
+        handler_func
+    ), f"handler_func {handler_func} is not callable"
+    assert role in _roles, f"invalid handler role: {role}"
+    name = qualname(to_func) if callable(to_func) else to_func
+    if name not in handlers:
+        logger.warning(
+            f"Function '{name}' is currently unknown. "
+            f"This is expected for iterables, but will "
+            f"lead to an error for other functions."
+        )
+        handlers[name] = {}
+    handler_sig = signature(handler_func)
+    if "_signature" in handlers[name]:
+        target_sig = handlers[name]["_signature"]
+        for k, param in target_sig.parameters.items():
+            assert k in handler_sig.parameters and str(param) == str(
+                handler_sig.parameters[k]
+            ), (
+                f"Mismatched parameter {k} of handler_func {handler_func}. "
+                f"First parameters should be: {str(target_sig)}, "
+                f"but signature is: {str(handler_sig)}."
+            )
+    if role == "after":
+        assert "_result" in handler_sig.parameters, (
+            f"handler_func {handler_func} lacks parameter '_result' "
+            f"as the last parameter (required for role 'after')."
+        )
+        # str_handler_par = str(handler_sig.parameters["_result"])
+        # assert str_handler_par == str(target_sig.parameters["_result"]), (
+        #     f"Malformed '_result' parameter "
+        #     f"{str_handler_par} in signature of "
+        #     f"handler_func {handler_func}.")
+    if role in handlers[name]:
+        logger.warning(
+            f"Attaching handler_func {handler_func}, role {role} "
+            f"to {name} overwrites existing handler"
+        )
+    handlers[name][role] = handler_func
+
+
+def remove_handler(from_func, role):
+    assert role in _roles, f"invalid handler role: {role}"
+    name = qualname(from_func) if callable(from_func) else from_func
+    assert (
+        name in handlers
+    ), f"Function '{name}' is unknown to plugin handlers."
+    try:
+        del handlers[name][role]
+    except KeyError:
+        raise KeyError(
+            f"No handler to remove from from_func '{name}', " f"role '{role}'"
+        )
