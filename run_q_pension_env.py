@@ -5,7 +5,7 @@ import random
 import numpy as np
 import gym
 # import gym_fin.envs.pension_env as penv
-import gym_fin
+# import gym_fin
 from agents import q_agent
 from agents import value_function
 import logging
@@ -25,7 +25,7 @@ def learn(agent, episodes, max_steps):
     num_actions = agent.q_function.action_disc.space.n
     for episode in range(episodes):
         logger.debug('size of q table: %s',
-                     len(agent.q_function.q_table.keys())*num_actions)
+                     len(agent.q_function.q_table.keys()) * num_actions)
 
         q_table, cumul_reward, num_steps, info = \
             agent.run_episode(max_steps=max_steps, exploit=False)
@@ -44,10 +44,11 @@ def learn(agent, episodes, max_steps):
                            len([h for h in agent.env.humans if h.active]),
                            info['company'].reputation)
         else:
-            logger.warning('q table size %s, epsilon %s, alpha %s',
-                        len(q_table.keys()), agent.epsilon, agent.alpha)
+            logger.warning(
+                'q table size %s, epsilon %s, alpha %s',
+                len(q_table.keys()), agent.epsilon, agent.alpha)
 
-    logger.warning('Overall cumulative reward: %s', overall/episodes)
+    logger.warning('Overall cumulative reward: %s', overall / episodes)
     logger.warning('Average reward last 100 episodes: %s', last_100.mean())
     return q_table
 
@@ -55,7 +56,7 @@ def learn(agent, episodes, max_steps):
 # Run Q-Learning
 # fmt: off
 
-env = gym.make('Pension-v0')
+env = gym.make('gym_fin:Pension-v0')
 num_bins = 12
 log_bins = True
 
@@ -102,20 +103,20 @@ random.seed(seed)
 np.random.seed(seed)
 
 q_func = value_function.QFunction(env,
-                         default_value=0,
-                         discretize_bins=num_bins,
-                         discretize_log=log_bins)
+                                  default_value=0,
+                                  discretize_bins=num_bins,
+                                  discretize_log=log_bins)
 
 agent = q_agent.Agent(env,
-                    q_function=q_func,
-                    update_policy=q_agent.greedy,
-                    exploration_policy=q_agent.epsilon_greedy,
-                    gamma=0.99,
-                    min_alpha=0.1,
-                    min_epsilon=0.1,
-                    alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
-                    epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
-                    )
+                      q_function=q_func,
+                      update_policy=q_agent.greedy,
+                      exploration_policy=q_agent.epsilon_greedy,
+                      gamma=0.99,
+                      min_alpha=0.1,
+                      min_epsilon=0.1,
+                      alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
+                      epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
+                      )
 
 q_table = learn(agent, episodes=1000, max_steps=20000)
 

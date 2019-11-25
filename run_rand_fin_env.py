@@ -2,8 +2,8 @@ import logging
 
 import gym
 
-# from simulation_base import FinBaseSimulation
-# from fin_env import generate_env
+from random import choice
+from gym_fin.envs.sim_env import attach_handler
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -13,9 +13,6 @@ logger = logging.getLogger(__name__)
 
 #############
 # pseudo-plugin code, imagine we imported this as a module
-
-from random import choice
-from gym_fin.envs.sim_env import attach_handler
 
 last_active = True
 

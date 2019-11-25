@@ -8,13 +8,13 @@ from stable_baselines.common.vec_env import DummyVecEnv
 # from stable_baselines.ppo2 import PPO2
 from stable_baselines.a2c import A2C
 
-import gym_fin
+# import gym_fin
 
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-env = gym.make('Pension-v0')
+env = gym.make('gym_fin:Pension-v0')
 # vectorized environments allow to easily multiprocess training
 env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
 
