@@ -3,7 +3,7 @@
 # Stdlib imports
 # from dataclasses import dataclass  # >=3.7
 import logging
-from typing import Dict, Optional
+from typing import Dict, List
 
 # Third-party imports
 from gym import spaces
@@ -23,33 +23,65 @@ class DeniedError(Exception):
 
 # @dataclass
 class Role:
-    def __init__(self, name: str, inverse: Optional[str] = None):
-        self.name: str = name
-        # inverse = (buyer/seller, etc., None for none
-        # (symmetries like friend/friend would be reciprocal but it's own inverse))
-        self.inverse: Optional[str] = inverse
-
-
-# @dataclass
-class Relation:
-    def __init__(self, role: Role, entity: "Entity"):
+    def __init__(self, role: str, inverse: str, relation: str):
         self.role: str = role
-        # inverse = (buyer/seller, etc., None for none
-        # (symmetries like friend/friend would be reciprocal but it's own inverse))
-        self.entity: Optional[str] = entity
+        self.inverse: str = inverse
+        self.relationship: str = relation
+
+
+class Contract:
+    """A two-party contract"""
+
+    def __init__(
+        self, my_role: str, me: "Entity", other: "Entity", reference: str
+    ):
+        self.role: str = ROLES[my_role]
+        self.type = self.role.relation
+        self.me: str = me
+        self.other: str = other
+        self.role_me: str = my_role
+        self.my_role: str = self.role_me  # for usability's sake
+        self.role_other: str = self.roles.inverse
+        self.reference = reference
+        self.created = me.world.time
+        self.fulfilled_by_me = False
+        self.fulfilled_by_other = False
+        self.in_dispute = False
+
+    @property
+    def fulfilled(self):
+        return self.fulfilled_by_me and self.fulfilled_by_other
 
 
 ROLES = {
-    "client": Role("client", "supplier"),
-    "supplier": Role("supplier", "client"),
-    "owner": Role("owner", "property"),
-    "property": Role("property", "owner"),
+    "buy": Role("buy", "sell", relation="trade"),
+    "sell": Role("sell", "buy", relation="trade"),
 }
 
 
+class Trade(Contract):
+    def __init__(
+        self,
+        me: "Entity",
+        other: "Entity",
+        my_number: float,
+        my_asset: str,
+        other_number: float,
+        other_asset: str,
+    ):
+        super().__init__(self, my_role="buy", me=me, other=other)
+        self.my_number = my_number
+        self.my_asset = my_asset
+        self.other_number = other_number
+        self.other_asset = other_asset
+        # self.status = 'open'  # open, denied, accepted, retracted, fulfilled
+
+
 REQUEST_TYPES = [
-    "relation",
-    "transfer",
+    "enter_contract",
+    "trade",
+    "in_transfer",
+    "out_transfer",
 ]
 
 
@@ -67,9 +99,16 @@ class FinBaseSimulation(SimulationInterface):
 
     initial_num_entities = 3
 
-    def __init__(self):
+    def __init__(self, delta_t: float = 1.0):
+        """Initialize the simulation.
+
+        Params:
+            - delta_t (float, default 1.0): One day equals 1.0, one
+              month equals 30.0, one year equals 360, one hour equals 0.04.
+        """
         self.entities = []
-        self.shouldStop = False
+        self.should_stop = False
+        self.delta_t = delta_t
 
     def run(self):
         """The main control flow of the simulation. Only called by the agent
@@ -84,12 +123,13 @@ class FinBaseSimulation(SimulationInterface):
         It will then be called automatically by the Env.
         """
         while (
-            not self.shouldStop
+            not self.should_stop
             and len([e for e in self.entities if e.active]) > 0
         ):
             for i, e in enumerate(self.entities):
                 logger.info(f"Entity {i} doing its thing...")
                 e.perform_increment()
+            self.time += self.delta_t
 
     def reset(self):
         """Return simulation to initial state.
@@ -99,7 +139,8 @@ class FinBaseSimulation(SimulationInterface):
         When using get_env(), don't call this method.
         It will then be called automatically by the Env.
         """
-        self.shouldStop = False
+        self.time = 0.0
+        self.should_stop = False
         self.entities = [
             Entity(self) for _ in range(FinBaseSimulation.initial_num_entities)
         ]
@@ -110,7 +151,7 @@ class FinBaseSimulation(SimulationInterface):
     def stop(self):
         """Signal the simulation to stop at the next chance in the run loop.
         """
-        self.shouldStop = True
+        self.should_stop = True
 
 
 class Seq:
@@ -229,19 +270,22 @@ class Entity(Seq):
         self.id = self.create_id()
         self.world = world
         self.resources: Dict[Resource] = {}
-        self.relations: Dict[Relation] = {}
+        self.contracts: List[Contract] = []
         self.active = True
 
     def __repr__(self):
         return f"Entity({self.id})"
 
-    def entity_relations(self, entity: "Entity"):
-        return {k: r for k, r in self.relations.items() if r.entity == entity}
-
-    def relations_of_role(self, role_name: str):
-        return {
-            k: r for k, r in self.relations.items() if r.role.name == role_name
-        }
+    def find_contracts(
+        self, type: str = None, other: "Entity" = None, reference: str = None
+    ):
+        return [
+            c
+            for c in self.contracts
+            if (not type or c.type == type)
+            and (not other or c.other is other)
+            and (not reference or c.reference == reference)
+        ]
 
     def resources_to_obs(self):
         li = [0] * len(ASSET_TYPES)
@@ -257,79 +301,202 @@ class Entity(Seq):
             li[idx] += 1  # TODO: could add up relations' wealth as well
         return li
 
-    @make_step(
-        observation_space=spaces.Tuple(
-            (
-                spaces.Box(
-                    low=np.array(
-                        [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(ROLES)
-                    ),
-                    high=np.array(
-                        [np.inf] * 2 * (len(ASSET_TYPES) + len(ROLES))
-                    ),
-                ),
-                spaces.Discrete(len(REQUEST_TYPES)),
-                spaces.Discrete(len(ROLES)),
-            )
-        ),
-        observation_space_mapping=lambda self, request_type, requesting_entity, request_contents: (
-            (
-                self.resources_to_obs()
-                + requesting_entity.resources_to_obs()
-                + self.relations_to_obs()
-                + requesting_entity.relations_to_obs()
-            ),
-            REQUEST_TYPES.index(request_type),
-            ROLES.keys().index(request_contents["role_name"])
-            if "role_name" in request_contents
-            else 0,
-        ),
-        action_space=spaces.Discrete(2),
-        action_space_mapping={0: None, 1: DeniedError},
-        reward_mapping=lambda self, request_type, requesting_entity, request_contents: sum(
-            self.resources_to_obs()
-        ),
-    )
+    # @make_step(
+    #     observation_space=spaces.Tuple(
+    #         (
+    #             spaces.Box(
+    #                 low=np.array(
+    #                     [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(ROLES)
+    #                 ),
+    #                 high=np.array(
+    #                     [np.inf] * 2 * (len(ASSET_TYPES) + len(ROLES))
+    #                 ),
+    #             ),
+    #             spaces.Discrete(len(REQUEST_TYPES)),
+    #             spaces.Discrete(len(ROLES)),
+    #         )
+    #     ),
+    #     observation_space_mapping=lambda self, request_type, requesting_entity, request_contents: (
+    #         (
+    #             self.resources_to_obs()
+    #             + requesting_entity.resources_to_obs()
+    #             + self.relations_to_obs()
+    #             + requesting_entity.relations_to_obs()
+    #         ),
+    #         REQUEST_TYPES.index(request_type),
+    #         ROLES.keys().index(request_contents["role_name"])
+    #         if "role_name" in request_contents
+    #         else 0,
+    #     ),
+    #     action_space=spaces.Discrete(2),
+    #     action_space_mapping={0: None, 1: DeniedError},
+    #     reward_mapping=lambda self, request_type, requesting_entity, request_contents: sum(
+    #         0  # self.resources_to_obs()
+    #     ),
+    # )
     def check_request(
         self,
         request_type: str,
         requesting_entity: "Entity",
         request_contents: Dict,
     ):
-        if request_type == "relation":
-            role_name = request_contents["role_name"]
-            if requesting_entity in [
-                r.entity
-                for _, r in self.relations.items()
-                if r.role.name == role_name
-            ]:
-                raise DeniedError(
-                    f"{role_name}-role relation already exists "
-                    f"between {self} and {requesting_entity}"
+        if request_type == "trade":
+            # always allow for now
+            pass
+        elif request_type == "in_transfer":
+            # always allow
+            pass
+        elif request_type == "out_transfer":
+            # todo: refactor, trades info needs to be available to agent before check
+            matching_trades = self.find_contracts(
+                type="trade",
+                other=requesting_entity,
+                reference=request_contents.reference,
+            )
+            if not matching_trades:
+                DeniedError(
+                    f"No matching trades for out_transfer by {requesting_entity} with request_contents {request_contents}"
                 )
-            # test example
-            elif role_name == "client" and len(self.resources) > 10:
-                raise DeniedError(f"We don't take any more clients")
+            if len(matching_trades) > 2:
+                ValueError(
+                    f"Found more than one matching trades for out_transfer by {requesting_entity} with request_contents {request_contents}"
+                )
+            t = matching_trades[0]
+            if t.fulfilled_by_me:
+                raise DeniedError(f"{self} already fulfilled Trade {t}")
+            if request_contents.number > t.my_number:
+                raise DeniedError(
+                    f"Requesting to transfer {request_contents.number} while contract only calls for {t.my_number}"
+                )
+        else:
+            raise ValueError(f"Unknown request_type: {request_type}")
 
-    def request_relation(
-        self, role_name: str, requesting_entity: "Entity", key_to_use: str
+    def request_transfer(
+        self,
+        number: float,
+        asset_type: str,
+        reference: str,
+        requesting_entity: "Entity",
     ):
         self.check_request(
-            "relation", requesting_entity, {"role_name": role_name}
+            "out_transfer",
+            requesting_entity,
+            {
+                "number": number,
+                "asset_type": asset_type,
+                "reference": reference,
+            },
         )
-        # TODO: Maybe put relation logic/inference code outside of entities
-        role = ROLES[role_name]
-        # Add my own inverse Relation back towards requester
-        if role.inverse:
-            if key_to_use in self.relations:
-                raise ValueError(
-                    f"key_to_use {key_to_use} already exists "
-                    f"in self.resources of {self}"
-                )
-            inv_role = ROLES[role.inverse]
-            back_rel = Relation(inv_role, requesting_entity)
-            self.relations[key_to_use] = back_rel
+        # Carry out the request. Only technical checks from this point on.
+        if reference not in self.resources:
+            # TODO: smarter way to reference resources?
+            raise ValueError(f"No resource with key {reference}")
+        # TODO: refactor code duplication
+        matching_trades = self.find_contracts(
+            type="trade", other=requesting_entity, reference=reference
+        )
+        t = matching_trades[0]  # already checked that there is one
+        res = self.resources[reference].take(number)
+        t.my_number = t.my_number - number
+        t.fulfilled_by_me = t.my_number == 0
+        return res
 
+    def receive_transfer(
+        self, resource: "Resource", reference: str, requesting_entity: "Entity"
+    ):
+        self.check_request(
+            "in_transfer",
+            requesting_entity,
+            {
+                "number": resource.number,
+                "asset_type": resource.asset_type,
+                "reference": reference,
+            },
+        )
+        # Carry out the request. Only technical checks from this point on.
+        if reference in self.resources:
+            # TODO: smarter way to reference resources?
+            self.resource[reference].put(resource)
+        else:
+            # Make a new resource as copy of the resource we were given
+            self.resource[reference] = resource.take(resource.number)
+
+    def request_trade(
+        self,
+        offered_number: float,
+        offered_asset: str,
+        asked_number: float,
+        asked_asset: str,
+        reference: str,
+        requesting_entity: "Entity",
+    ):
+        request_contents = {
+            "my_number": asked_number,
+            "my_asset": asked_asset,
+            "other_number": offered_number,
+            "other_asset": offered_asset,
+            "reference": reference,
+        }
+        self.check_request("trade", requesting_entity, request_contents)
+        # Carry out the request. Only technical checks from this point on.
+        t = Trade(me=self, other=requesting_entity, **request_contents)
+        self.contracts.append(t)
+
+    # On from handling requests to actually initiating stuff:
+    def transfer_to(
+        self,
+        number: float,
+        asset_type: str,
+        reference: str,
+        receiving_entity: "Entity",
+    ):
+        res = self.resources[reference].take(number)
+        try:
+            receiving_entity.receive_transfer(res, reference, self)
+            return True
+        except DeniedError as e:
+            logger.info(
+                f"{self}'s transfer was denied by "
+                f"{receiving_entity}: {e.msg}"
+            )
+            self.resources[reference].put(res)
+            return False
+
+    def propose_trade_to(
+        self,
+        offered_number: float,
+        offered_asset: str,
+        asked_number: float,
+        asked_asset: str,
+        reference: str,
+        other: "Entity",
+    ):
+        request_contents = {
+            "my_number": offered_number,
+            "my_asset": offered_asset,
+            "other_number": asked_number,
+            "other_asset": asked_asset,
+            "reference": reference,
+        }
+        t = Trade(me=self, other=other, **request_contents)
+        try:
+            other.request_trade(
+                offered_number=offered_number,  # todo: cumbersome
+                offered_asset=offered_asset,
+                asked_number=asked_number,
+                asked_asset=asked_asset,
+                reference=reference,
+                requesting_entity=self,
+            )
+            self.contracts.append(t)
+            return True
+        except DeniedError as e:
+            logger.info(
+                f"{self}'s trade contract was " f"denied by {other}: {e.msg}"
+            )
+            return False
+
+    # Some test functionality below:
     @make_step(
         observation_space=spaces.Box(
             low=np.array(
