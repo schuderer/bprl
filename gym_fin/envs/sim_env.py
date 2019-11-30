@@ -57,9 +57,10 @@ def make_step(
     Any callables will be called with the parameters of the decorated function.
     """
 
-    assert callable(
-        observation_space_mapping
-    ), "observation_space_mapping must be a function reference"
+    if not callable(observation_space_mapping):
+        raise AssertionError(
+            "observation_space_mapping " "must be a function reference"
+        )
     obs_from_args = observation_space_mapping
 
     def perform_action(action):
@@ -73,14 +74,16 @@ def make_step(
                 return action_val
 
     if not callable(action_space_mapping):
-        assert type(action_space) == spaces.Discrete, (
-            "action_space_mapping dict requires "
-            "action_space to be of type Discrete"
-        )
-        assert action_space.n == len(action_space_mapping), (
-            "Mismatch in number of actions between "
-            "action_space_mapping and action_space"
-        )
+        if type(action_space) != spaces.Discrete:
+            raise AssertionError(
+                "action_space_mapping dict requires "
+                "action_space to be of type Discrete"
+            )
+        if action_space.n != len(action_space_mapping):
+            raise AssertionError(
+                "Mismatch in number of actions between "
+                "action_space_mapping and action_space"
+            )
 
     def decorator(func):
         name = qualname(func)
@@ -394,10 +397,10 @@ def expose_to_plugins(func_or_iterable, override_name=None):
 
 
 def attach_handler(handler_func, to_func, role):
-    assert callable(
-        handler_func
-    ), f"handler_func {handler_func} is not callable"
-    assert role in _roles, f"invalid handler role: {role}"
+    if not callable(handler_func):
+        raise AssertionError(f"handler_func {handler_func} is not callable")
+    if role not in _roles:
+        raise AssertionError(f"invalid handler role: {role}")
     name = qualname(to_func) if callable(to_func) else to_func
     if name not in handlers:
         logger.warning(
@@ -410,18 +413,20 @@ def attach_handler(handler_func, to_func, role):
     if "_signature" in handlers[name]:
         target_sig = handlers[name]["_signature"]
         for k, param in target_sig.parameters.items():
-            assert k in handler_sig.parameters and str(param) == str(
+            if (k not in handler_sig.parameters) or str(param) != str(
                 handler_sig.parameters[k]
-            ), (
-                f"Mismatched parameter {k} of handler_func {handler_func}. "
-                f"First parameters should be: {str(target_sig)}, "
-                f"but signature is: {str(handler_sig)}."
-            )
+            ):
+                raise AssertionError(
+                    f"Mismatched parameter {k} of handler_func {handler_func}. "
+                    f"First parameters should be: {str(target_sig)}, "
+                    f"but signature is: {str(handler_sig)}."
+                )
     if role == "after":
-        assert "_result" in handler_sig.parameters, (
-            f"handler_func {handler_func} lacks parameter '_result' "
-            f"as the last parameter (required for role 'after')."
-        )
+        if "_result" not in handler_sig.parameters:
+            raise AssertionError(
+                f"handler_func {handler_func} lacks parameter '_result' "
+                f"as the last parameter (required for role 'after')."
+            )
         # str_handler_par = str(handler_sig.parameters["_result"])
         # assert str_handler_par == str(target_sig.parameters["_result"]), (
         #     f"Malformed '_result' parameter "
@@ -436,11 +441,13 @@ def attach_handler(handler_func, to_func, role):
 
 
 def remove_handler(from_func, role):
-    assert role in _roles, f"invalid handler role: {role}"
+    if role not in _roles:
+        raise AssertionError(f"invalid handler role: {role}")
     name = qualname(from_func) if callable(from_func) else from_func
-    assert (
-        name in handlers
-    ), f"Function '{name}' is unknown to plugin handlers."
+    if name not in handlers:
+        raise AssertionError(
+            f"Function '{name}' is unknown to plugin handlers."
+        )
     try:
         del handlers[name][role]
     except KeyError:
