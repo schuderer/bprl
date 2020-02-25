@@ -3,10 +3,11 @@
 # Stdlib imports
 # from dataclasses import dataclass  # >=3.7
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 # Third-party imports
 from gym import spaces
+from gym.utils import seeding
 import numpy as np
 
 # Application-level imports
@@ -36,12 +37,12 @@ class Contract:
         self, my_role: str, me: "Entity", other: "Entity", reference: str
     ):
         self.role: str = ROLES[my_role]
-        self.type = self.role.relation
-        self.me: str = me
-        self.other: str = other
+        self.type = self.role.relationship
+        self.me: Entity = me
+        self.other: Entity = other
         self.role_me: str = my_role
         self.my_role: str = self.role_me  # for usability's sake
-        self.role_other: str = self.roles.inverse
+        self.role_other: str = self.role.inverse
         self.reference = reference
         self.created = me.world.time
         self.fulfilled_by_me = False
@@ -49,7 +50,7 @@ class Contract:
         self.in_dispute = False
 
     @property
-    def fulfilled(self):
+    def fulfilled(self) -> bool:
         return self.fulfilled_by_me and self.fulfilled_by_other
 
 
@@ -69,7 +70,7 @@ class Trade(Contract):
         other_number: float,
         other_asset: str,
     ):
-        super().__init__(self, my_role="buy", me=me, other=other)
+        super().__init__(my_role="buy", me=me, other=other)
         self.my_number = my_number
         self.my_asset = my_asset
         self.other_number = other_number
@@ -100,12 +101,14 @@ class FinBaseSimulation(SimulationInterface):
     initial_num_entities = 3
 
     def __init__(self, delta_t: float = 1.0):
-        """Initialize the simulation.
+        """Initialize the simulation object.
+        This happens separately from resetting the simulation using `reset()`.
 
         Params:
             - delta_t (float, default 1.0): One day equals 1.0, one
-              month equals 30.0, one year equals 360, one hour equals 0.04.
+              month equals 30.0, one year equals 365, one hour equals 0.04.
         """
+        self.seed()
         self.entities = []
         self.should_stop = False
         self.delta_t = delta_t
@@ -134,7 +137,7 @@ class FinBaseSimulation(SimulationInterface):
     def reset(self):
         """Return simulation to initial state.
         NOTE: This is NOT the Environment's reset() function.
-        Only this function if your agent is using callbacks directly.
+        Only called be the agent if it is using callbacks directly.
 
         When using get_env(), don't call this method.
         It will then be called automatically by the Env.
@@ -152,6 +155,13 @@ class FinBaseSimulation(SimulationInterface):
         """Signal the simulation to stop at the next chance in the run loop.
         """
         self.should_stop = True
+
+    def find_entities(self, entity_type: type) -> List["Entity"]:
+        return [e for e in self.entities if isinstance(e, entity_type)]
+
+    def seed(self, seed: int = None) -> List[int]:
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
 
 class Seq:
@@ -203,7 +213,7 @@ class Resource(Seq):
             f"allow_negative={self.allow_negative})"
         )
 
-    def to_obs(self):
+    def to_obs(self) -> Tuple:
         return (self.asset_type_idx, self.number)
 
     def obs_space(self):
@@ -218,7 +228,7 @@ class Resource(Seq):
             )
         )
 
-    def take(self, number: float):
+    def take(self, number: float) -> "Resource":
         """Take a number of assets out of the `Resource`.
 
         Params:
@@ -274,11 +284,11 @@ class Entity(Seq):
         self.active = True
 
     def __repr__(self):
-        return f"Entity({self.id})"
+        return f"{type(self).__name__}({self.id})"
 
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
-    ):
+    ) -> List[Contract]:
         return [
             c
             for c in self.contracts
@@ -287,14 +297,14 @@ class Entity(Seq):
             and (not reference or c.reference == reference)
         ]
 
-    def resources_to_obs(self):
+    def resources_to_obs(self) -> List:
         li = [0] * len(ASSET_TYPES)
         for key, res in self.resources.items():
             idx = ASSET_TYPES.index(res.asset_type)
             li[idx] += res.number
         return li
 
-    def relations_to_obs(self):
+    def relations_to_obs(self) -> List:
         li = [0] * len(ROLES)
         for key, rel in self.relations.items():
             idx = ROLES.keys().index(rel.role.name)
@@ -377,7 +387,7 @@ class Entity(Seq):
         asset_type: str,
         reference: str,
         requesting_entity: "Entity",
-    ):
+    ) -> Resource:
         self.check_request(
             "out_transfer",
             requesting_entity,
@@ -449,7 +459,7 @@ class Entity(Seq):
         asset_type: str,
         reference: str,
         receiving_entity: "Entity",
-    ):
+    ) -> bool:
         res = self.resources[reference].take(number)
         try:
             receiving_entity.receive_transfer(res, reference, self)
@@ -470,7 +480,7 @@ class Entity(Seq):
         asked_asset: str,
         reference: str,
         other: "Entity",
-    ):
+    ) -> bool:
         request_contents = {
             "my_number": offered_number,
             "my_asset": offered_asset,

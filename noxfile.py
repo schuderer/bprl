@@ -111,7 +111,6 @@ def coverage(session):
         ".coveragerc",
         "--cov-report=",  # No coverage report
     )
-    session.install("coverage", "coveralls")
     session.run(
         "coverage",
         "report",
@@ -119,6 +118,7 @@ def coverage(session):
         "--show-missing",
     )
     if ON_TRAVIS_CI:
+        session.install("coveralls")
         session.run("coveralls")
     session.run("coverage", "erase")
 
