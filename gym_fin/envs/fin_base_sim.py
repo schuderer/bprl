@@ -3,7 +3,7 @@
 # Stdlib imports
 # from dataclasses import dataclass  # >=3.7
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # Third-party imports
 from gym import spaces
@@ -23,10 +23,36 @@ class DeniedError(Exception):
 
 # @dataclass
 class Role:
-    def __init__(self, role: str, inverse: str, relation: str):
-        self.role: str = role
-        self.inverse: str = inverse
-        self.relationship: str = relation
+    _roles: Dict[str, "Role"] = {}
+
+    def __new__(cls, role: str, inverse: Optional[str] = None, relation: Optional[str] = None):
+        if inverse and relation:  # instantiate new Role
+            if role in cls._roles:
+                ValueError(f"Cannot redefine already defined role {role}.")
+            obj = object.__new__(cls)
+            obj.role: str = role
+            obj.inverse: str = inverse
+            obj.relation: str = relation
+            cls._roles[role] = obj
+            return obj
+        else:  # reference to singleton instance
+            if role not in cls._roles:
+                ValueError(f"The role {role} has not been defined.")
+            return cls._roles[role]
+
+    @property
+    def all:
+        return _roles
+
+
+# defining roles
+Role("buy", "sell", relation="trade")
+Role("sell", "buy", relation="trade")
+
+# ROLES = {
+#     "buy": Role("buy", "sell", relation="trade"),
+#     "sell": Role("sell", "buy", relation="trade"),
+# }
 
 
 class Contract:
@@ -35,7 +61,7 @@ class Contract:
     def __init__(
         self, my_role: str, me: "Entity", other: "Entity", reference: str
     ):
-        self.role: str = ROLES[my_role]
+        self.role: Role = Role(my_role)
         self.type = self.role.relation
         self.me: str = me
         self.other: str = other
@@ -53,23 +79,18 @@ class Contract:
         return self.fulfilled_by_me and self.fulfilled_by_other
 
 
-ROLES = {
-    "buy": Role("buy", "sell", relation="trade"),
-    "sell": Role("sell", "buy", relation="trade"),
-}
-
-
 class Trade(Contract):
     def __init__(
         self,
         me: "Entity",
         other: "Entity",
+        my_role: str,
         my_number: float,
         my_asset: str,
         other_number: float,
         other_asset: str,
     ):
-        super().__init__(self, my_role="buy", me=me, other=other)
+        super().__init__(self, my_role=my_role, me=me, other=other, reference="")
         self.my_number = my_number
         self.my_asset = my_asset
         self.other_number = other_number
@@ -80,8 +101,8 @@ class Trade(Contract):
 REQUEST_TYPES = [
     "enter_contract",
     "trade",
-    "in_transfer",
-    "out_transfer",
+    "intransfer",
+    "outtransfer",
 ]
 
 
@@ -295,9 +316,9 @@ class Entity(Seq):
         return li
 
     def relations_to_obs(self):
-        li = [0] * len(ROLES)
+        li = [0] * len(Role.all)
         for key, rel in self.relations.items():
-            idx = ROLES.keys().index(rel.role.name)
+            idx = Role.all.keys().index(rel.role.name)
             li[idx] += 1  # TODO: could add up relations' wealth as well
         return li
 
@@ -340,36 +361,57 @@ class Entity(Seq):
         requesting_entity: "Entity",
         request_contents: Dict,
     ):
-        if request_type == "trade":
-            # always allow for now
-            pass
-        elif request_type == "in_transfer":
-            # always allow
-            pass
-        elif request_type == "out_transfer":
-            # todo: refactor, trades info needs to be available to agent before check
-            matching_trades = self.find_contracts(
-                type="trade",
-                other=requesting_entity,
-                reference=request_contents.reference,
+        request_func_name = f"check_{request_type}_request"
+        request_func = getattr(self, request_func_name)
+
+    def check_trade_request(
+        self,
+        request_type: str,
+        requesting_entity: "Entity",
+        request_contents: Dict,
+    ):
+        pass  # always allow trade contracts for now
+
+    def check_intransfer_request(
+        self,
+        request_type: str,
+        requesting_entity: "Entity",
+        request_contents: Dict,
+    ):
+        pass  # always allow for now
+
+    def check_outtransfer_request(
+        self,
+        request_type: str,
+        requesting_entity: "Entity",
+        request_contents: Dict,
+    ):
+        # todo: refactor, trades info needs to be available to agent before check
+        possible_contracts = self.find_contracts(
+            # type="trade",
+            other=requesting_entity,
+            reference=request_contents.reference,
+        )
+        payment_contracts = [c for c in possible_contracts if hasattr(c, "my_number") and hasattr(c, "my_asset")]
+        if not payment_contracts:
+            DeniedError(
+                f"No matching contracts for outtransfer by {requesting_entity} with request_contents {request_contents}"
             )
-            if not matching_trades:
-                DeniedError(
-                    f"No matching trades for out_transfer by {requesting_entity} with request_contents {request_contents}"
-                )
-            if len(matching_trades) > 2:
-                ValueError(
-                    f"Found more than one matching trades for out_transfer by {requesting_entity} with request_contents {request_contents}"
-                )
-            t = matching_trades[0]
-            if t.fulfilled_by_me:
-                raise DeniedError(f"{self} already fulfilled Trade {t}")
-            if request_contents.number > t.my_number:
-                raise DeniedError(
-                    f"Requesting to transfer {request_contents.number} while contract only calls for {t.my_number}"
-                )
-        else:
-            raise ValueError(f"Unknown request_type: {request_type}")
+        if len(payment_contracts) > 2:
+            ValueError(
+                f"Found more than one matching contracts for outtransfer by {requesting_entity} with request_contents {request_contents}"
+            )
+        t = payment_contracts[0]
+        if t.fulfilled_by_me:
+            raise DeniedError(f"I ({self}) already fulfilled contract {t}")
+        if request_contents.number > t.my_number:
+            raise DeniedError(
+                f"Request to transfer {request_contents.number} while contract only calls for {t.my_number}"
+            )
+        if request_contents.asset_type != t.my_asset:
+            raise DeniedError(
+                f"Request to transfer from asset {request_contents.asset_type} while contract specifies asset {t.my_asset}"
+            )
 
     def request_transfer(
         self,
@@ -379,7 +421,7 @@ class Entity(Seq):
         requesting_entity: "Entity",
     ):
         self.check_request(
-            "out_transfer",
+            "outtransfer",
             requesting_entity,
             {
                 "number": number,
@@ -390,22 +432,21 @@ class Entity(Seq):
         # Carry out the request. Only technical checks from this point on.
         if reference not in self.resources:
             # TODO: smarter way to reference resources?
-            raise ValueError(f"No resource with key {reference}")
+            raise ValueError(f"No resource with key '{reference}'")
         # TODO: refactor code duplication
-        matching_trades = self.find_contracts(
-            type="trade", other=requesting_entity, reference=reference
-        )
-        t = matching_trades[0]  # already checked that there is one
+        possible_contracts = self.find_contracts(other=requesting_entity, reference=reference)
+        payment_contracts = [c for c in possible_contracts if hasattr(c, "my_number") and hasattr(c, "my_asset")]
+        p = payment_contracts[0]  # already checked in check_request that there is exactly one contract
         res = self.resources[reference].take(number)
-        t.my_number = t.my_number - number
-        t.fulfilled_by_me = t.my_number == 0
+        p.my_number = p.my_number - number
+        p.fulfilled_by_me = p.my_number == 0
         return res
 
     def receive_transfer(
         self, resource: "Resource", reference: str, requesting_entity: "Entity"
     ):
         self.check_request(
-            "in_transfer",
+            "intransfer",
             requesting_entity,
             {
                 "number": resource.number,
@@ -421,12 +462,45 @@ class Entity(Seq):
             # Make a new resource as copy of the resource we were given
             self.resource[reference] = resource.take(resource.number)
 
-    def request_trade(
+    def request_contract(self, **kwargs, requested_role: str, reference: str, requesting_entity: "Entity"):
+        """Ask this `Entity` to enter a contract with the `Entity` calling
+        `request_contract`.
+
+        Params:
+            - *kwargs: arguments which are specific to the type of contract
+            - requested_role (str): Role that this `Entity` is asked to fulfil
+              (e.g. "buy", "sell")
+            - reference (str): a generic reference string (commonly used to
+              determine where to transfer `Resource`s to/from)
+            - requesting_entity (Entity): The entity calling `request_contract`
+        """
+        role = Role(requested_role)
+        type = role.relation
+        request_func_name = f"request_{type}_contract"
+        request_func = getattr(self, request_func_name)
+        return request_func(self, **kwargs, requested_role: str, reference: str, requesting_entity: "Entity")
+
+    # def request_contract(self, proposed_contract: Contract):
+    #     """Ask this `Entity` to enter a contract with the `Entity` calling
+    #     `request_contract`.
+    #
+    #     Params:
+    #         - proposed_contract: The contract being proposed.
+    #     """
+    #     role = Role(requested_role)
+    #     type = role.relation
+    #     request_func_name = f"request_{type}_contract"
+    #     request_func = getattr(self, request_func_name)
+    #     return request_func(self, **kwargs, requested_role: str, reference: str, requesting_entity: "Entity")
+
+
+    def request_trade_contract(
         self,
         offered_number: float,
         offered_asset: str,
         asked_number: float,
         asked_asset: str,
+        requested_role: str = None,
         reference: str,
         requesting_entity: "Entity",
     ):
@@ -480,11 +554,12 @@ class Entity(Seq):
         }
         t = Trade(me=self, other=other, **request_contents)
         try:
-            other.request_trade(
+            other.request_contract(
                 offered_number=offered_number,  # todo: cumbersome
                 offered_asset=offered_asset,
                 asked_number=asked_number,
                 asked_asset=asked_asset,
+                requested_role="sell",
                 reference=reference,
                 requesting_entity=self,
             )
@@ -492,7 +567,7 @@ class Entity(Seq):
             return True
         except DeniedError as e:
             logger.info(
-                f"{self}'s trade contract was " f"denied by {other}: {e.msg}"
+                f"{self}'s trade contract was denied by {other}: {e.msg}"
             )
             return False
 
@@ -500,9 +575,9 @@ class Entity(Seq):
     @make_step(
         observation_space=spaces.Box(
             low=np.array(
-                [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(ROLES)
+                [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(Role.all)
             ),
-            high=np.array([np.inf] * 2 * (len(ASSET_TYPES) + len(ROLES))),
+            high=np.array([np.inf] * 2 * (len(ASSET_TYPES) + len(Role.all))),
         ),
         observation_space_mapping=lambda self: (
             self.resources_to_obs() + self.relations_to_obs()

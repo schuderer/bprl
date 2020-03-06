@@ -1,3 +1,5 @@
+from math import inf
+
 from gym_fin.envs import fin_base_sim as f
 from gym_fin.envs.sim_env import expose_to_plugins
 from gym_fin import utils
@@ -42,15 +44,26 @@ class PensionSim(f.FinBaseSimulation):
 
 
 # Extend with domain-specific roles
-f.ROLES["insured"] = f.Role("insured", "insurer", relation="insurance")
-f.ROLES["insurer"] = f.Role("insurer", "insured", relation="insurance")
+f.Role("insured", "insurer", relation="insurance")
+f.Role("insurer", "insured", relation="insurance")
 
 
-class PensionContract(f.Contract):
+class PensionContract(f.Trade):
     """Contract between a `PensionInsuranceCompany` and an `Individual`."""
 
-    def __init__(self, me: f.Entity, other: f.Entity):
-        super().__init__(my_role="insured", me=me, other=other, reference="cash")
+    def __init__(
+        self,
+        me: f.Entity,
+        other: f.Entity,
+        reference: str
+    ):
+        super().__init__(self, my_role="insured", me=me, other=other, reference=reference)
+        # Some contract specifics could be specified, but we want to
+        # experiment with flexible choices here.
+        self.my_number = inf
+        self.my_asset = "eur"
+        self.other_number = inf
+        self.other_asset = "eur"
 
 
 class PensionInsuranceCompany(f.Entity):
@@ -60,6 +73,28 @@ class PensionInsuranceCompany(f.Entity):
     def __init__(self, world: PensionSim):
         super().__init__(world)
         self.resources["cash"] = f.Resource(asset_type="eur", number=20000)
+
+    def request_insurance_contract(
+        self,
+        requested_role: str,
+        reference: str,
+        requesting_entity: "Entity",
+    ):
+        request_contents = {
+            "reference": reference,
+        }
+        self.check_request("insurance", requesting_entity, request_contents)
+        # Carry out the request. Only technical checks from this point on.
+        p = PensionContract(me=self, other=requesting_entity, **request_contents)
+        self.contracts.append(p)
+
+    def check_insurance_request(
+        self,
+        request_type: str,
+        requesting_entity: "Entity",
+        request_contents: Dict,
+    ):
+        pass  # always allow for now
 
     @expose_to_plugins
     def perform_increment(self):
@@ -99,7 +134,8 @@ class Individual(f.Entity):
         )
 
         try:
-            # Spend living expenses (won't need the resulting Resource object)
+            # Spend living expenses (we won't simulate how this money circulates,
+            # can throw away the resulting Resource object)
             _ = self.resources["cash"].take(self.living_expenses)
         except f.DeniedError:
             po = self.world.find_entities(PublicOpinion)[0]
@@ -114,6 +150,22 @@ class Individual(f.Entity):
             for c in self.find_contracts(type="insurance"):
                 po.accuse(c.other, 20)
 
+        if self.age >= 25 and not self.find_contracts(type="insurance"):
+            # Try to get some pension insurance
+            companies = self.world.find_entities(PensionInsuranceCompany)
+            po = self.world.find_entities(PublicOpinion)[0]
+            best_companies_first = sorted(companies, key=po.reputation, reverse=True)
+            for c in best_companies_first:
+                rep = po.reputation(c)
+                if (self.world.np_random.uniform() < utils.cached_cdf(int(rep / 100) * 100, 0, 1500)):
+                    try:
+                        c.request_contract(requested_role="insurer", reference="cash", requesting_entity=self)
+                        p = PensionContract(me=self, other=requesting_entity, reference="cash")
+                        self.contracts.append(p)
+                        break
+                    except DeniedError:
+                        pass
+
 
 class PublicOpinion(f.Entity):
     """"Virtual entity which abstracts a collective of entities.
@@ -124,22 +176,25 @@ class PublicOpinion(f.Entity):
 
     def __init__(self, world: PensionSim):
         super().__init__(world)
-        self.reputation = {}
+        self._reputation = {}
 
     def accuse(self, offender: f.Entity, severity: int):
         if int < 0:
             raise ValueError("Severity must be greater than 0")
-        if offender.id in self.reputation:
-            self.reputation[offender.id] -= severity
+        if offender.id in self._reputation:
+            self._reputation[offender.id] -= severity
         else:
-            self.reputation[offender.id] = severity
+            self._reputation[offender.id] = -severity
+
+    def reputation(self, entity: f.Entity):
+        return self._reputation.get(entity.id, None)
 
     @expose_to_plugins
     def perform_increment(self):
         """Performs one time increment of action(s) for `PublicOpinion`
         """
         # Slowly recover reputation
-        for e_id in self.reputation:
-            self.reputation[e_id] = int(self.reputation[e_id] * 0.9)
-            if self.reputation[e_id] > -5:
-                self.reputation[e_id] = 0
+        for e_id in self._reputation:
+            self._reputation[e_id] = int(self._reputation[e_id] * 0.9)
+            if self._reputation[e_id] > -5:
+                self._reputation[e_id] = 0
