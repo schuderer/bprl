@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 # Third-party imports
 from gym import spaces
+from gym.utils import seeding
 import numpy as np
 
 # Application-level imports
@@ -38,6 +39,14 @@ class Role:
             obj.role: str = role
             obj.inverse: str = inverse
             obj.relation: str = relation
+
+            def repr_func(self):
+                return (
+                    f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
+                    f"other={self.other}, reference={self.reference})"
+                )
+
+            obj.__repr__ = repr_func
             cls._roles[role] = obj
             return obj
         else:  # reference to singleton instance
@@ -48,6 +57,12 @@ class Role:
     @classmethod
     def roles(cls):
         return cls._roles
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
+            f"other={self.other}, reference={self.reference})"
+        )
 
 
 # defining roles
@@ -68,11 +83,11 @@ class Contract:
     ):
         self.role: Role = Role(my_role)
         self.type = self.role.relation
-        self.me: str = me
-        self.other: str = other
+        self.me: "Entity" = me
+        self.other: "Entity" = other
         self.role_me: str = my_role
         self.my_role: str = self.role_me  # for usability's sake
-        self.role_other: str = self.roles.inverse
+        self.role_other: str = self.role.inverse
         self.reference = reference
         self.created = me.world.time
         self.fulfilled_by_me = False
@@ -82,6 +97,12 @@ class Contract:
     @property
     def fulfilled(self):
         return self.fulfilled_by_me and self.fulfilled_by_other
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
+            f"other={self.other}, reference={self.reference})"
+        )
 
 
 class Trade(Contract):
@@ -95,14 +116,19 @@ class Trade(Contract):
         other_number: float,
         other_asset: str,
     ):
-        super().__init__(
-            self, my_role=my_role, me=me, other=other, reference=""
-        )
+        super().__init__(self, my_role, me, other, "")
         self.my_number = my_number
         self.my_asset = my_asset
         self.other_number = other_number
         self.other_asset = other_asset
         # self.status = 'open'  # open, denied, accepted, retracted, fulfilled
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(me={self.me}, other={self.other}, "
+            f"my_role={self.my_role}, my_number={self.my_number}, my_asset={self.my_asset}, "
+            f"other_number={self.other_number}, other_asset={self.other_asset})"
+        )
 
 
 REQUEST_TYPES = [
@@ -134,13 +160,19 @@ class FinBaseSimulation(SimulationInterface):
             - delta_t (float, default 1.0): One day equals 1.0, one
               month equals 30.0, one year equals 360, one hour equals 0.04.
         """
+        self.time = 0
+        self.delta_t = delta_t
         self.entities = []
         self.should_stop = False
-        self.delta_t = delta_t
+        self.reset_called = False
+        self.np_random = None
+        self.seed()
 
     def run(self):
         """The main control flow of the simulation. Only called by the agent
         if it is using callbacks directly.
+
+        NOTE: `reset` has to be called (at least once) before `run` may be called.
 
         Terminates when an episode is over (does not need to terminate for
         infinite episodes). Use the environment's reset() method to
@@ -150,6 +182,10 @@ class FinBaseSimulation(SimulationInterface):
         When using get_env(), don't call this method.
         It will then be called automatically by the Env.
         """
+        if not self.reset_called:
+            raise RuntimeError(
+                "`run` called before `reset`. Call `reset` before attempting to `run` the simulation."
+            )
         while (
             not self.should_stop
             and len([e for e in self.entities if e.active]) > 0
@@ -175,11 +211,19 @@ class FinBaseSimulation(SimulationInterface):
         for e in self.entities:
             r = Resource(asset_type="eur", number=100)
             e.resources["cash"] = r
+        self.reset_called = True
 
     def stop(self):
         """Signal the simulation to stop at the next chance in the run loop.
         """
         self.should_stop = True
+
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(delta_t={self.delta_t})"
 
 
 class Seq:
@@ -227,7 +271,7 @@ class Resource(Seq):
 
     def __repr__(self):
         return (
-            f"Resource(asset_type={self.asset_type}, number={self.number}, "
+            f"{self.__class__.__name__}(asset_type={self.asset_type}, number={self.number}, "
             f"allow_negative={self.allow_negative})"
         )
 
@@ -297,12 +341,12 @@ class Entity(Seq):
     def __init__(self, world: FinBaseSimulation):
         self.id = self.create_id()
         self.world = world
-        self.resources: Dict[Resource] = {}
+        self.resources: Dict[str, Resource] = {}
         self.contracts: List[Contract] = []
         self.active = True
 
     def __repr__(self):
-        return f"Entity({self.id})"
+        return f"{self.__class__.__name__}({self.id})"
 
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
@@ -322,12 +366,13 @@ class Entity(Seq):
             li[idx] += res.number
         return li
 
-    def relations_to_obs(self):
-        li = [0] * len(Role.roles())
-        for key, rel in self.relations.items():
-            idx = Role.roles().keys().index(rel.role.name)
-            li[idx] += 1  # TODO: could add up relations' wealth as well
-        return li
+    # Todo: change to contracts
+    # def relations_to_obs(self):
+    #     li = [0] * len(Role.roles())
+    #     for key, rel in self.relations.items():
+    #         idx = Role.roles().keys().index(rel.role.name)
+    #         li[idx] += 1  # TODO: could add up relations' wealth as well
+    #     return li
 
     # @make_step(
     #     observation_space=spaces.Tuple(
@@ -398,7 +443,7 @@ class Entity(Seq):
         possible_contracts = self.find_contracts(
             # type="trade",
             other=requesting_entity,
-            reference=request_contents.reference,
+            reference=request_contents["reference"],
         )
         payment_contracts = [
             c
@@ -411,7 +456,8 @@ class Entity(Seq):
             )
         if len(payment_contracts) > 2:
             ValueError(
-                f"Found more than one matching contracts for outtransfer by {requesting_entity} with request_contents {request_contents}"
+                f"Found more than one matching contracts for outtransfer "
+                f"by {requesting_entity} with request_contents {request_contents}"
             )
         t = payment_contracts[0]
         if t.fulfilled_by_me:
@@ -609,7 +655,7 @@ class Entity(Seq):
             ),
         ),
         observation_space_mapping=lambda self: (
-            self.resources_to_obs() + self.relations_to_obs()
+            self.resources_to_obs()  # + self.relations_to_obs()
         ),
         action_space=spaces.Discrete(2),
         action_space_mapping={0: "A", 1: "B"},

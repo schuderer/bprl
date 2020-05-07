@@ -25,8 +25,8 @@ class PensionSim(f.FinBaseSimulation):
         # own code here (optional)
 
     def run(self):
+        # TODO: add own code instead of calling super
         super().run()
-        # own code here (optional)
 
     def reset(self):
         """Make this an empty simulation with exactly one
@@ -54,17 +54,17 @@ class PensionContract(f.Trade):
 
     def __init__(
         self,
+        my_role: str,
         me: f.Entity,
         other: f.Entity,
-        reference: str
     ):
-        super().__init__(self, my_role="insured", me=me, other=other, reference=reference)
         # Some contract specifics could be specified, but we want to
         # experiment with flexible choices here.
-        self.my_number = inf
-        self.my_asset = "eur"
-        self.other_number = inf
-        self.other_asset = "eur"
+        my_number = inf
+        my_asset = "eur"
+        other_number = inf
+        other_asset = "eur"
+        super().__init__(self, me, other, my_role, my_number, my_asset, other_number, other_asset)
 
 
 class PensionInsuranceCompany(f.Entity):
@@ -81,12 +81,9 @@ class PensionInsuranceCompany(f.Entity):
         reference: str,
         requesting_entity: f.Entity,
     ):
-        request_contents = {
-            "reference": reference,
-        }
-        self.check_request("insurance", requesting_entity, request_contents)
+        self.check_request("insurance", requesting_entity, {})
         # Carry out the request. Only technical checks from this point on.
-        p = PensionContract(me=self, other=requesting_entity, **request_contents)
+        p = PensionContract("insurer", self, requesting_entity)
         self.contracts.append(p)
 
     def check_insurance_request(
@@ -125,7 +122,7 @@ class Individual(f.Entity):
         if self.age >= 67:
             self.income = 0  # Stop working
 
-        if (self.world.np_random.uniform() < utils.cached_cdf(int(self.age / 2) * 2, 85, 10)):
+        if self.world.np_random.uniform() < utils.cached_cdf(int(self.age / 2) * 2, 85, 10):
             self.active = False  # Die
             return
 
@@ -158,10 +155,10 @@ class Individual(f.Entity):
             best_companies_first = sorted(companies, key=po.reputation, reverse=True)
             for c in best_companies_first:
                 rep = po.reputation(c)
-                if (self.world.np_random.uniform() < utils.cached_cdf(int(rep / 100) * 100, 0, 1500)):
+                if self.world.np_random.uniform() < utils.cached_cdf(int(rep / 100) * 100, 0, 1500):
                     try:
                         c.request_contract(requested_role="insurer", reference="cash", requesting_entity=self)
-                        p = PensionContract(me=self, other=c, reference="cash")
+                        p = PensionContract("insured", self, c)
                         self.contracts.append(p)
                         break
                     except f.DeniedError:
@@ -180,7 +177,7 @@ class PublicOpinion(f.Entity):
         self._reputation = {}
 
     def accuse(self, offender: f.Entity, severity: int):
-        if int < 0:
+        if severity < 0:
             raise ValueError("Severity must be greater than 0")
         if offender.id in self._reputation:
             self._reputation[offender.id] -= severity
