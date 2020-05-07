@@ -3,7 +3,7 @@
 # Stdlib imports
 # from dataclasses import dataclass  # >=3.7
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 
 # Third-party imports
 from gym import spaces
@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class DeniedError(Exception):
+    pass
+
+
+class EntityInactiveError(Exception):
     pass
 
 
@@ -116,7 +120,7 @@ class Trade(Contract):
         other_number: float,
         other_asset: str,
     ):
-        super().__init__(self, my_role, me, other, "")
+        super().__init__(my_role, me, other, "")
         self.my_number = my_number
         self.my_asset = my_asset
         self.other_number = other_number
@@ -203,6 +207,7 @@ class FinBaseSimulation(SimulationInterface):
         When using get_env(), don't call this method.
         It will then be called automatically by the Env.
         """
+        self.reset_called = True
         self.time = 0.0
         self.should_stop = False
         self.entities = [
@@ -211,7 +216,6 @@ class FinBaseSimulation(SimulationInterface):
         for e in self.entities:
             r = Resource(asset_type="eur", number=100)
             e.resources["cash"] = r
-        self.reset_called = True
 
     def stop(self):
         """Signal the simulation to stop at the next chance in the run loop.
@@ -224,6 +228,14 @@ class FinBaseSimulation(SimulationInterface):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(delta_t={self.delta_t})"
+
+    def find_entities(self, entity_type: Type["Entity"], is_active: bool = True) -> List["Entity"]:
+        return [
+            e
+            for e in self.entities
+            if isinstance(e, entity_type)
+            and e.active == is_active
+        ]
 
 
 class Seq:
@@ -347,6 +359,10 @@ class Entity(Seq):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.id})"
+
+    def ensure_active(self):
+        if not self.active:
+            raise EntityInactiveError("Attempting to interact with inactive Entity.")
 
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
@@ -533,7 +549,6 @@ class Entity(Seq):
         requested_role: str,
         reference: str,
         requesting_entity: "Entity",
-        **kwargs,
     ):
         """Ask this `Entity` to enter a contract with the `Entity` calling
         `request_contract`.
@@ -550,8 +565,10 @@ class Entity(Seq):
         type = role.relation
         request_func_name = f"request_{type}_contract"
         request_func = getattr(self, request_func_name)
+        # print(f"{request_func}({self}, {requested_role}, {reference}, {requesting_entity})")
         return request_func(
-            self, requested_role, reference, requesting_entity, **kwargs
+            #self,
+            requested_role, reference, requesting_entity
         )
 
     # def request_contract(self, proposed_contract: Contract):
