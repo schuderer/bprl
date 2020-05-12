@@ -106,8 +106,8 @@ def make_step(
             global env_metadata
             step_view = env_metadata["step_views"][name]
             if step_view["callback"]:
-                before_obs = obs_from_args(*args, **kwargs)
                 before_reward = reward_mapping(*args, **kwargs)
+                before_obs = obs_from_args(*args, **kwargs)
                 before_info = {}
                 action = step_view["callback"](
                     before_obs, before_reward, before_info
