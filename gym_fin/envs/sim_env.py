@@ -172,13 +172,13 @@ def generate_env(world: SimulationInterface, name: str):
         def run_user_code(self):
             self.user_done.clear()
             self.sim_done.set()
-            logger.debug(f"callback waiting for turn...")
+            logger.debug("callback waiting for turn...")
             self.user_done.wait()
 
         def run_simulation_code(self):
             self.sim_done.clear()
             self.user_done.set()
-            logger.debug(f"user code waiting for turn...")
+            logger.debug("user code waiting for turn...")
             self.sim_done.wait()
 
         def simulation_async(self, simulation_obj):
