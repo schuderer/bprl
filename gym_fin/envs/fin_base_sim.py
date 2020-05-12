@@ -229,12 +229,13 @@ class FinBaseSimulation(SimulationInterface):
     def __repr__(self):
         return f"{self.__class__.__name__}(delta_t={self.delta_t})"
 
-    def find_entities(self, entity_type: Type["Entity"], is_active: bool = True) -> List["Entity"]:
+    def find_entities(
+        self, entity_type: Type["Entity"], is_active: bool = True
+    ) -> List["Entity"]:
         return [
             e
             for e in self.entities
-            if isinstance(e, entity_type)
-            and e.active == is_active
+            if isinstance(e, entity_type) and e.active == is_active
         ]
 
 
@@ -362,7 +363,9 @@ class Entity(Seq):
 
     def ensure_active(self):
         if not self.active:
-            raise EntityInactiveError("Attempting to interact with inactive Entity.")
+            raise EntityInactiveError(
+                "Attempting to interact with inactive Entity."
+            )
 
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
@@ -545,10 +548,7 @@ class Entity(Seq):
             self.resource[reference] = resource.take(resource.number)
 
     def request_contract(
-        self,
-        requested_role: str,
-        reference: str,
-        requesting_entity: "Entity",
+        self, requested_role: str, reference: str, requesting_entity: "Entity",
     ):
         """Ask this `Entity` to enter a contract with the `Entity` calling
         `request_contract`.
@@ -567,8 +567,10 @@ class Entity(Seq):
         request_func = getattr(self, request_func_name)
         # print(f"{request_func}({self}, {requested_role}, {reference}, {requesting_entity})")
         return request_func(
-            #self,
-            requested_role, reference, requesting_entity
+            # self,
+            requested_role,
+            reference,
+            requesting_entity,
         )
 
     # def request_contract(self, proposed_contract: Contract):
