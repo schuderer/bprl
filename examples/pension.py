@@ -80,8 +80,8 @@ class PensionContract(f.Trade):
 
     def __init__(
         self,
-        my_role: str,
         me: f.Entity,
+        my_role: str,
         other: f.Entity,
     ):
         # Some contract specifics could be specified, but we want to
@@ -90,7 +90,11 @@ class PensionContract(f.Trade):
         my_asset = "eur"
         other_number = inf
         other_asset = "eur"
-        super().__init__(me, other, my_role, my_number, my_asset, other_number, other_asset)
+        super().__init__(me, my_role, my_number, my_asset, other, other_number, other_asset, "cash")
+
+    # def to_contract_request(self) -> Dict:
+    #     """Please override this method when inheriting"""
+    #     # todo
 
 
 class PensionInsuranceCompany(f.Entity):
@@ -101,18 +105,18 @@ class PensionInsuranceCompany(f.Entity):
         super().__init__(world)
         self.resources["cash"] = f.Resource(asset_type="eur", number=20000)
 
-    def request_insurance_contract(
-        self,
-        requested_role: str,
-        reference: str,
-        requesting_entity: f.Entity,
-    ):
-        self.check_request("insurance", requesting_entity, {})
-        # Carry out the request. Only technical checks from this point on.
-        p = PensionContract("insurer", self, requesting_entity)
-        self.contracts.append(p)
+    # def request_insurance_contract(
+    #     self,
+    #     requested_role: str,
+    #     reference: str,
+    #     requesting_entity: f.Entity,
+    # ):
+    #     self.check_request("insurance", requesting_entity, {})
+    #     # Carry out the request. Only technical checks from this point on.
+    #     p = PensionContract("insurer", self, requesting_entity)
+    #     self.contracts.append(p)
 
-    def check_insurance_request(
+    def check_insurance_contract_request(
         self,
         request_type: str,
         requesting_entity: f.Entity,
@@ -172,7 +176,7 @@ class Individual(f.Entity):
         except f.DeniedError:
             po = self.world.find_entities(PublicOpinion)[0]
             for c in self.find_contracts(type="insurance"):
-                po.accuse(c.other, 100)
+                po.accuse(c.entities[1], 100)
             print("Starving")
             self.active = False  # Starve
             return
@@ -181,27 +185,33 @@ class Individual(f.Entity):
             # Be unhappy and tell the world
             po = self.world.find_entities(PublicOpinion)[0]
             for c in self.find_contracts(type="insurance"):
-                po.accuse(c.other, 20)
+                po.accuse(c.entities[1], 20)
 
         print(self.age)
         print(self.find_contracts(type="insurance"))
         if self.age >= 25 and not self.find_contracts(type="insurance"):
             # Try to get some pension insurance
-            print("Trying to get insurance")
+            print("Trying to get insurance...")
             companies = self.world.find_entities(PensionInsuranceCompany)
             po = self.world.find_entities(PublicOpinion)[0]
             best_companies_first = sorted(companies, key=po.reputation, reverse=True)
             for c in best_companies_first:
                 rep = po.reputation(c)
-                print(f"looking at {c} with reputation {rep}")
+                print(f"    ...Looking at {c} with reputation {rep}...")
                 if self.world.np_random.uniform() < utils.cached_cdf(int(rep / 100) * 100, 0, 1500):
                     try:
-                        c.request_contract(requested_role="insurer", reference="cash", requesting_entity=self)
-                        p = PensionContract("insured", self, c)
-                        self.contracts.append(p)
+                        print(f"        ...suggesting contract...")
+                        contract = PensionContract(me=self, my_role="insured", other=c)
+                        c.request_contract(contract)
+                        contract.draft = False
+                        self.contracts.append(contract)
+                        print(f"            ...got accepted.")
                         break
                     except f.DeniedError:
+                        print(f"            ...got denied.")
                         pass
+                else:
+                    print(f"        ...I don't like it.")
 
 
 class PublicOpinion(f.Entity):

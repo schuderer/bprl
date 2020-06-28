@@ -2,6 +2,7 @@
 
 # Stdlib imports
 # from dataclasses import dataclass  # >=3.7
+import copy
 import logging
 from typing import Dict, List, Optional, Type
 
@@ -19,11 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 class DeniedError(Exception):
-    pass
+    def __init__(self, message, counter_offer=None):
+        super().__init__(message)
+        self.counter_offer = counter_offer
 
 
 class EntityInactiveError(Exception):
     pass
+
+
+class Seq:
+    """Base class to create (incremental) class instance ids"""
+
+    seq: int = -1
+
+    @classmethod
+    def create_id(cls):
+        cls.seq += 1
+        return cls.seq
 
 
 # @dataclass
@@ -73,39 +87,50 @@ class Role:
 Role("buy", "sell", relation="trade")
 Role("sell", "buy", relation="trade")
 
-# ROLES = {
-#     "buy": Role("buy", "sell", relation="trade"),
-#     "sell": Role("sell", "buy", relation="trade"),
-# }
 
-
-class Contract:
+class Contract(Seq):
     """A two-party contract"""
 
     def __init__(
-        self, my_role: str, me: "Entity", other: "Entity", reference: str
+        self, me: "Entity", my_role: str, other: "Entity", reference: str
     ):
-        self.role: Role = Role(my_role)
-        self.type = self.role.relation
-        self.me: "Entity" = me
-        self.other: "Entity" = other
-        self.role_me: str = my_role
-        self.my_role: str = self.role_me  # for usability's sake
-        self.role_other: str = self.role.inverse
+        my_role_obj: Role = Role(my_role)
+
+        self.id = self.create_id()
+        self.type = my_role_obj.relation
+        self.entities = [me, other]
+        self.roles = [my_role, my_role_obj.inverse]
         self.reference = reference
         self.created = me.world.time
-        self.fulfilled_by_me = False
-        self.fulfilled_by_other = False
+        self.fulfilled = [False, False]
+        self.draft = True
         self.in_dispute = False
 
-    @property
-    def fulfilled(self):
-        return self.fulfilled_by_me and self.fulfilled_by_other
+    def is_fulfilled(self):
+        return all(self.fulfilled)
+
+    def get_inverse(self):
+        inverse_contract = copy.deepcopy(self)
+        inverse_contract.create_id()
+        for attr_name in [a for a in dir(self) if not a.startswith("_")]:
+            attr = getattr(self, attr_name)
+            if isinstance(attr, list) and len(attr) == 2:
+                attr.reverse()
+        return inverse_contract
+
+    def to_contract_request(self) -> Dict:
+        """Please override this method when inheriting"""
+        return {
+            "my_role": self.roles[0],
+            "other_role": self.roles[1],
+        }
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
-            f"other={self.other}, reference={self.reference})"
+            f"{'DRAFT ' if self.draft else ''}{self.__class__.__name__}"
+            f"(me={self.entities[0]}, my_role={self.roles[0]}, "
+            f"other={self.entities[1]}, reference={self.reference})"
+            f"{' [in dispute]' if self.in_dispute else ''}"
         )
 
 
@@ -113,25 +138,38 @@ class Trade(Contract):
     def __init__(
         self,
         me: "Entity",
-        other: "Entity",
         my_role: str,
         my_number: float,
         my_asset: str,
+        other: "Entity",
         other_number: float,
         other_asset: str,
+        reference: str,
     ):
-        super().__init__(my_role, me, other, "")
-        self.my_number = my_number
-        self.my_asset = my_asset
-        self.other_number = other_number
-        self.other_asset = other_asset
-        # self.status = 'open'  # open, denied, accepted, retracted, fulfilled
+        super().__init__(me, my_role, other, reference)
+        self.numbers = [my_number, other_number]
+        self.assets = [my_asset, other_asset]
+
+    def to_contract_request(self) -> Dict:
+        """Please override this method when inheriting"""
+        return {
+            "my_role": self.roles[0],
+            "other_role": self.roles[1],
+            "asked_number": self.numbers[0],
+            "asked_asset": self.assets[1],
+            "offered_number": self.numbers[1],
+            "offered_asset": self.assets[1],
+            "reference": self.reference,
+        }
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(me={self.me}, other={self.other}, "
-            f"my_role={self.my_role}, my_number={self.my_number}, my_asset={self.my_asset}, "
-            f"other_number={self.other_number}, other_asset={self.other_asset})"
+            f"{'DRAFT ' if self.draft else ''}{self.__class__.__name__}"
+            f"(me={self.entities[0]}, my_role={self.roles[0]}, "
+            f"other={self.entities[1]}, reference={self.reference})"
+            f"my_number={self.numbers[0]}, my_asset={self.assets[0]}, "
+            f"other_number={self.numbers[1]}, other_asset={self.assets[1]})"
+            f"{' [in dispute]' if self.in_dispute else ''}"
         )
 
 
@@ -237,17 +275,6 @@ class FinBaseSimulation(SimulationInterface):
             for e in self.entities
             if isinstance(e, entity_type) and e.active == is_active
         ]
-
-
-class Seq:
-    """Base class to create (incremental) class instance ids"""
-
-    seq: int = -1
-
-    @classmethod
-    def create_id(cls):
-        cls.seq += 1
-        return cls.seq
 
 
 class Resource(Seq):
@@ -374,7 +401,7 @@ class Entity(Seq):
             c
             for c in self.contracts
             if (not type or c.type == type)
-            and (not other or c.other is other)
+            and (not other or c.entities[1] is other)
             and (not reference or c.reference == reference)
         ]
 
@@ -436,14 +463,6 @@ class Entity(Seq):
         request_func = getattr(self, request_func_name)
         request_func(request_type, requesting_entity, request_contents)
 
-    def check_trade_request(
-        self,
-        request_type: str,
-        requesting_entity: "Entity",
-        request_contents: Dict,
-    ):
-        pass  # always allow trade contracts for now
-
     def check_intransfer_request(
         self,
         request_type: str,
@@ -467,7 +486,7 @@ class Entity(Seq):
         payment_contracts = [
             c
             for c in possible_contracts
-            if hasattr(c, "my_number") and hasattr(c, "my_asset")
+            if hasattr(c, "numbers") and hasattr(c, "assets")
         ]
         if not payment_contracts:
             DeniedError(
@@ -479,15 +498,15 @@ class Entity(Seq):
                 f"by {requesting_entity} with request_contents {request_contents}"
             )
         t = payment_contracts[0]
-        if t.fulfilled_by_me:
+        if t.fulfilled[0]:
             raise DeniedError(f"I ({self}) already fulfilled contract {t}")
-        if request_contents.number > t.my_number:
+        if request_contents.number > t.numbers[0]:
             raise DeniedError(
-                f"Request to transfer {request_contents.number} while contract only calls for {t.my_number}"
+                f"Request to transfer {request_contents.number} while contract only calls for {t.numbers[0]}"
             )
-        if request_contents.asset_type != t.my_asset:
+        if request_contents.asset_type != t.assets[0]:
             raise DeniedError(
-                f"Request to transfer from asset {request_contents.asset_type} while contract specifies asset {t.my_asset}"
+                f"Request to transfer from asset {request_contents.asset_type} while contract specifies asset {t.assets[0]}"
             )
 
     def request_transfer(
@@ -519,12 +538,11 @@ class Entity(Seq):
             for c in possible_contracts
             if hasattr(c, "my_number") and hasattr(c, "my_asset")
         ]
-        p = payment_contracts[
-            0
-        ]  # already checked in check_request that there is exactly one contract
+        # already checked in check_request that there is exactly one contract
+        p = payment_contracts[0]
         res = self.resources[reference].take(number)
-        p.my_number = p.my_number - number
-        p.fulfilled_by_me = p.my_number == 0
+        p.numbers[0] = p.numbers[0] - number
+        p.fulfilled[0] = p.numbers[0] == 0
         return res
 
     def receive_transfer(
@@ -547,66 +565,33 @@ class Entity(Seq):
             # Make a new resource as copy of the resource we were given
             self.resource[reference] = resource.take(resource.number)
 
-    def request_contract(
-        self, requested_role: str, reference: str, requesting_entity: "Entity",
-    ):
+    def request_contract(self, contract: Contract):
         """Ask this `Entity` to enter a contract with the `Entity` calling
         `request_contract`.
 
         Params:
-            - *kwargs: arguments which are specific to the type of contract
-            - requested_role (str): Role that this `Entity` is asked to fulfil
-              (e.g. "buy", "sell")
-            - reference (str): a generic reference string (commonly used to
-              determine where to transfer `Resource`s to/from)
-            - requesting_entity (Entity): The entity calling `request_contract`
+            - contract: draft contract
         """
-        role = Role(requested_role)
-        type = role.relation
-        request_func_name = f"request_{type}_contract"
-        request_func = getattr(self, request_func_name)
-        # print(f"{request_func}({self}, {requested_role}, {reference}, {requesting_entity})")
-        return request_func(
-            # self,
-            requested_role,
-            reference,
-            requesting_entity,
+        # General checks:
+        if not contract.draft:
+            raise DeniedError(
+                f"Cannot request a definite (non-draft) contract {contract}"
+            )
+        if contract.entities[1] is not self:
+            raise DeniedError(f"{self} must be a party in contract {contract}")
+        type = contract.type
+        # print(f"{check_func_name}({self}, {requested_role}, {reference}, {requesting_entity})")
+
+        self.check_request(
+            f"{type}_contract",
+            requesting_entity=contract.entities[0],
+            request_contents=contract.to_contract_request(),
         )
 
-    # def request_contract(self, proposed_contract: Contract):
-    #     """Ask this `Entity` to enter a contract with the `Entity` calling
-    #     `request_contract`.
-    #
-    #     Params:
-    #         - proposed_contract: The contract being proposed.
-    #     """
-    #     role = Role(requested_role)
-    #     type = role.relation
-    #     request_func_name = f"request_{type}_contract"
-    #     request_func = getattr(self, request_func_name)
-    #     return request_func(self, **kwargs, requested_role: str, reference: str, requesting_entity: "Entity")
-
-    def request_trade_contract(
-        self,
-        offered_number: float,
-        offered_asset: str,
-        asked_number: float,
-        asked_asset: str,
-        requested_role: str,
-        reference: str,
-        requesting_entity: "Entity",
-    ):
-        request_contents = {
-            "my_number": asked_number,
-            "my_asset": asked_asset,
-            "other_number": offered_number,
-            "other_asset": offered_asset,
-            "reference": reference,
-        }
-        self.check_request("trade", requesting_entity, request_contents)
-        # Carry out the request. Only technical checks from this point on.
-        t = Trade(me=self, other=requesting_entity, **request_contents)
-        self.contracts.append(t)
+        # Successful if no DeniedError raised
+        final_contract = contract.get_inverse()
+        final_contract.draft = False
+        self.contracts.append(final_contract)
 
     # On from handling requests to actually initiating stuff:
     def transfer_to(
@@ -630,31 +615,25 @@ class Entity(Seq):
 
     def propose_trade_to(
         self,
+        buy_or_sell: str,
         offered_number: float,
         offered_asset: str,
+        other: "Entity",
         asked_number: float,
         asked_asset: str,
         reference: str,
-        other: "Entity",
     ):
-        request_contents = {
-            "my_number": offered_number,
-            "my_asset": offered_asset,
-            "other_number": asked_number,
-            "other_asset": asked_asset,
-            "reference": reference,
-        }
-        t = Trade(me=self, other=other, **request_contents)
+        t = Trade(
+            me=self,
+            my_role=buy_or_sell,
+            other=other,
+            my_number=offered_number,
+            my_asset=offered_asset,
+            other_number=asked_number,
+            other_asset=asked_asset,
+        )
         try:
-            other.request_contract(
-                offered_number=offered_number,  # todo: cumbersome
-                offered_asset=offered_asset,
-                asked_number=asked_number,
-                asked_asset=asked_asset,
-                requested_role="sell",
-                reference=reference,
-                requesting_entity=self,
-            )
+            other.request_contract(t)
             self.contracts.append(t)
             return True
         except DeniedError as e:
