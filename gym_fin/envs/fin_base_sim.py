@@ -4,7 +4,7 @@
 # from dataclasses import dataclass  # >=3.7
 import copy
 import logging
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 # Third-party imports
 from gym import spaces
