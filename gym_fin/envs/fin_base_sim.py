@@ -196,11 +196,12 @@ class FinBaseSimulation(SimulationInterface):
     initial_num_entities = 3
 
     def __init__(self, delta_t: float = 1.0):
-        """Initialize the simulation.
+        """Initialize the simulation object.
+        This happens separately from resetting the simulation using `reset()`.
 
         Params:
             - delta_t (float, default 1.0): One day equals 1.0, one
-              month equals 30.0, one year equals 360, one hour equals 0.04.
+              month equals 30.0, one year equals 365, one hour equals 0.04.
         """
         self.time = 0
         self.delta_t = delta_t
@@ -240,7 +241,7 @@ class FinBaseSimulation(SimulationInterface):
     def reset(self):
         """Return simulation to initial state.
         NOTE: This is NOT the Environment's reset() function.
-        Only this function if your agent is using callbacks directly.
+        Only called be the agent if it is using callbacks directly.
 
         When using get_env(), don't call this method.
         It will then be called automatically by the Env.
@@ -315,7 +316,7 @@ class Resource(Seq):
             f"allow_negative={self.allow_negative})"
         )
 
-    def to_obs(self):
+    def to_obs(self) -> Tuple:
         return (self.asset_type_idx, self.number)
 
     def obs_space(self):
@@ -330,7 +331,7 @@ class Resource(Seq):
             )
         )
 
-    def take(self, number: float):
+    def take(self, number: float) -> "Resource":
         """Take a number of assets out of the `Resource`.
 
         Params:
@@ -396,7 +397,7 @@ class Entity(Seq):
 
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
-    ):
+    ) -> List[Contract]:
         return [
             c
             for c in self.contracts
@@ -405,7 +406,7 @@ class Entity(Seq):
             and (not reference or c.reference == reference)
         ]
 
-    def resources_to_obs(self):
+    def resources_to_obs(self) -> List:
         li = [0] * len(ASSET_TYPES)
         for key, res in self.resources.items():
             idx = ASSET_TYPES.index(res.asset_type)
@@ -515,7 +516,7 @@ class Entity(Seq):
         asset_type: str,
         reference: str,
         requesting_entity: "Entity",
-    ):
+    ) -> Resource:
         self.check_request(
             "outtransfer",
             requesting_entity,
@@ -600,7 +601,7 @@ class Entity(Seq):
         asset_type: str,
         reference: str,
         receiving_entity: "Entity",
-    ):
+    ) -> bool:
         res = self.resources[reference].take(number)
         try:
             receiving_entity.receive_transfer(res, reference, self)
