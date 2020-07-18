@@ -112,8 +112,8 @@ class Contract(Seq):
     def get_inverse(self):
         inverse_contract = copy.deepcopy(self)
         inverse_contract.create_id()
-        for attr_name in [a for a in dir(self) if not a.startswith("_")]:
-            attr = getattr(self, attr_name)
+        for attr_name in [a for a in dir(inverse_contract) if not a.startswith("_")]:
+            attr = getattr(inverse_contract, attr_name)
             if isinstance(attr, list) and len(attr) == 2:
                 attr.reverse()
         return inverse_contract
@@ -166,7 +166,7 @@ class Trade(Contract):
         return (
             f"{'DRAFT ' if self.draft else ''}{self.__class__.__name__}"
             f"(me={self.entities[0]}, my_role={self.roles[0]}, "
-            f"other={self.entities[1]}, reference={self.reference})"
+            f"other={self.entities[1]}, reference={self.reference}, "
             f"my_number={self.numbers[0]}, my_asset={self.assets[0]}, "
             f"other_number={self.numbers[1]}, other_asset={self.assets[1]})"
             f"{' [in dispute]' if self.in_dispute else ''}"
@@ -389,6 +389,10 @@ class Entity(Seq):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.id})"
 
+    def __deepcopy__(self, memo):
+        """No copies allowed, only reference"""
+        return self
+
     def ensure_active(self):
         if not self.active:
             raise EntityInactiveError(
@@ -413,47 +417,6 @@ class Entity(Seq):
             li[idx] += res.number
         return li
 
-    # Todo: change to contracts
-    # def relations_to_obs(self):
-    #     li = [0] * len(Role.roles())
-    #     for key, rel in self.relations.items():
-    #         idx = Role.roles().keys().index(rel.role.name)
-    #         li[idx] += 1  # TODO: could add up relations' wealth as well
-    #     return li
-
-    # @make_step(
-    #     observation_space=spaces.Tuple(
-    #         (
-    #             spaces.Box(
-    #                 low=np.array(
-    #                     [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(ROLES)
-    #                 ),
-    #                 high=np.array(
-    #                     [np.inf] * 2 * (len(ASSET_TYPES) + len(ROLES))
-    #                 ),
-    #             ),
-    #             spaces.Discrete(len(REQUEST_TYPES)),
-    #             spaces.Discrete(len(ROLES)),
-    #         )
-    #     ),
-    #     observation_space_mapping=lambda self, request_type, requesting_entity, request_contents: (
-    #         (
-    #             self.resources_to_obs()
-    #             + requesting_entity.resources_to_obs()
-    #             + self.relations_to_obs()
-    #             + requesting_entity.relations_to_obs()
-    #         ),
-    #         REQUEST_TYPES.index(request_type),
-    #         ROLES.keys().index(request_contents["role_name"])
-    #         if "role_name" in request_contents
-    #         else 0,
-    #     ),
-    #     action_space=spaces.Discrete(2),
-    #     action_space_mapping={0: None, 1: DeniedError},
-    #     reward_mapping=lambda self, request_type, requesting_entity, request_contents: sum(
-    #         0  # self.resources_to_obs()
-    #     ),
-    # )
     def check_request(
         self,
         request_type: str,
@@ -479,11 +442,13 @@ class Entity(Seq):
         request_contents: Dict,
     ):
         # todo: refactor, trades info needs to be available to agent before check
+        # print(f"contracts={self.contracts}")
         possible_contracts = self.find_contracts(
             # type="trade",
             other=requesting_entity,
             reference=request_contents["reference"],
         )
+        # print(f"possible_contracts={possible_contracts}")
         payment_contracts = [
             c
             for c in possible_contracts
@@ -501,13 +466,13 @@ class Entity(Seq):
         t = payment_contracts[0]
         if t.fulfilled[0]:
             raise DeniedError(f"I ({self}) already fulfilled contract {t}")
-        if request_contents.number > t.numbers[0]:
+        if request_contents["number"] > t.numbers[0]:
             raise DeniedError(
-                f"Request to transfer {request_contents.number} while contract only calls for {t.numbers[0]}"
+                f"Request to transfer {request_contents['number']} while contract only calls for {t.numbers[0]}"
             )
-        if request_contents.asset_type != t.assets[0]:
+        if request_contents["asset_type"] != t.assets[0]:
             raise DeniedError(
-                f"Request to transfer from asset {request_contents.asset_type} while contract specifies asset {t.assets[0]}"
+                f"Request to transfer from asset {request_contents['asset_type']} while contract specifies asset {t.assets[0]}"
             )
 
     def request_transfer(
@@ -537,7 +502,7 @@ class Entity(Seq):
         payment_contracts = [
             c
             for c in possible_contracts
-            if hasattr(c, "my_number") and hasattr(c, "my_asset")
+            if hasattr(c, "numbers") and hasattr(c, "assets")
         ]
         # already checked in check_request that there is exactly one contract
         p = payment_contracts[0]
@@ -592,7 +557,9 @@ class Entity(Seq):
         # Successful if no DeniedError raised
         final_contract = contract.get_inverse()
         final_contract.draft = False
+        # print(f"{self} contracts before: {self.contracts}")
         self.contracts.append(final_contract)
+        # print(f"{self} contracts after: {self.contracts}")
 
     # On from handling requests to actually initiating stuff:
     def transfer_to(
