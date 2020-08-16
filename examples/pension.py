@@ -3,7 +3,7 @@ from math import inf
 from typing import Dict
 
 from gym_fin.envs import fin_base_sim as f
-# from gym_fin.envs.sim_env import expose_to_plugins
+from gym_fin.envs.sim_env import expose_to_plugins
 from gym_fin.envs import utils
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ class PensionSim(f.FinBaseSimulation):
         super().__init__(delta_t)
         # own code here (optional)
         self.reset_called = False
+        self.year_fraction = 365 / delta_t
 
     def run(self):
         if not self.reset_called:
@@ -92,10 +93,6 @@ class PensionContract(f.Trade):
         other_asset = "eur"
         super().__init__(me, my_role, my_number, my_asset, other, other_number, other_asset, "cash")
 
-    # def to_contract_request(self) -> Dict:
-    #     """Please override this method when inheriting"""
-    #     # todo
-
 
 class PensionInsuranceCompany(f.Entity):
     """"Company which provides pension insurance services to `Individual`s."""
@@ -104,17 +101,7 @@ class PensionInsuranceCompany(f.Entity):
     def __init__(self, world: PensionSim):
         super().__init__(world)
         self.resources["cash"] = f.Resource(asset_type="eur", number=20000)
-
-    # def request_insurance_contract(
-    #     self,
-    #     requested_role: str,
-    #     reference: str,
-    #     requesting_entity: f.Entity,
-    # ):
-    #     self.check_request("insurance", requesting_entity, {})
-    #     # Carry out the request. Only technical checks from this point on.
-    #     p = PensionContract("insurer", self, requesting_entity)
-    #     self.contracts.append(p)
+        self.running_cost = 2000
 
     def check_insurance_contract_request(
         self,
@@ -124,13 +111,47 @@ class PensionInsuranceCompany(f.Entity):
     ):
         pass  # always allow for now
 
-    # @expose_to_plugins
+    @expose_to_plugins
     def perform_increment(self):
         """Performs one time increment of action(s) for a
         `PensionInsuranceCompany`
         """
-        # todo do stuff
-        pass
+        # Spend cost to keep doors open
+        # can throw away the resulting Resource object)
+        r = self.resources["cash"].take(self.running_cost)
+        print(f"{self} spending {r}. {self.resources['cash']} left.")
+        c: PensionContract
+        for c in self.find_contracts(type="insurance"):
+            # print(f"insurance contract entities: {c.entities}")
+            client = c.entities[1]  # 1 = other, 0 = me
+            value: int = self.determine_client_transaction(client)
+            if value < 0:
+                try:
+                    premium = client.request_transfer(-value, "eur", "cash", self)
+                    self.resources["cash"].put(premium)
+                except f.DeniedError as e:
+                    print(f"{self} could not get {-value} from {client}: {e}")
+            elif value > 0:
+                try:
+                    pension = self.resources["cash"].take(value)
+                except f.DeniedError as e:
+                    print(f"{self} could not take {value} from {self.resources['cash']}: {e}")
+                else:
+                    try:
+                        client.receive_transfer(pension, "cash", self)
+                    except f.DeniedError as e:
+                        print(f"{self} could not give {pension} to {client}: {e}")
+                        self.resources["cash"].put(pension)
+                        del(pension)
+
+    def determine_client_transaction(self, client: "Individual") -> int:
+        # Static fallback code (replaced by RL actions)
+        if client.age < 67:
+            # get premium
+            return -1500 * self.world.year_fraction
+        else:
+            # pay out pension
+            return 12000 * self.world.year_fraction
 
 
 class Individual(f.Entity):
@@ -143,8 +164,8 @@ class Individual(f.Entity):
         super().__init__(world)
         self.resources["cash"] = f.Resource(asset_type="eur", number=20000)
         self._creation_time = world.time
-        self.income = 20000
-        self.living_expenses = 15000
+        self.income = 20000 * self.world.year_fraction
+        self.living_expenses = 15000 * self.world.year_fraction
 
     @property
     def age(self):
@@ -159,7 +180,7 @@ class Individual(f.Entity):
         if self.age >= 67:
             self.income = 0  # Stop working
 
-        if self.world.np_random.uniform() < utils.cached_cdf(int(self.age / 2) * 2, 85, 10):
+        if self.world.np_random.uniform() < self.world.year_fraction * utils.cached_cdf(int(self.age / 2) * 2, 85, 10):
             self.active = False  # Die
             return
 
@@ -172,12 +193,12 @@ class Individual(f.Entity):
             # Spend living expenses (we won't simulate how this money circulates,
             # can throw away the resulting Resource object)
             r = self.resources["cash"].take(self.living_expenses)
-            print(f"Spending {r}. {self.resources['cash']} left.")
+            print(f"{self} spending {r}. {self.resources['cash']} left.")
         except f.DeniedError:
             po = self.world.find_entities(PublicOpinion)[0]
             for c in self.find_contracts(type="insurance"):
                 po.accuse(c.entities[1], 100)
-            print("Starving")
+            print("Broke")
             self.active = False  # Starve
             return
 
@@ -188,7 +209,6 @@ class Individual(f.Entity):
                 po.accuse(c.entities[1], 20)
 
         print(self.age)
-        print(self.find_contracts(type="insurance"))
         if self.age >= 25 and not self.find_contracts(type="insurance"):
             # Try to get some pension insurance
             print("Trying to get insurance...")
@@ -198,20 +218,22 @@ class Individual(f.Entity):
             for c in best_companies_first:
                 rep = po.reputation(c)
                 print(f"    ...Looking at {c} with reputation {rep}...")
-                if self.world.np_random.uniform() < utils.cached_cdf(int(rep / 100) * 100, 0, 1500):
+                if self.world.np_random.uniform() < self.world.year_fraction * utils.cached_cdf(int(rep / 100) * 100, 0, 1500):
                     try:
-                        print(f"        ...suggesting contract...")
+                        print("        ...suggesting contract...")
                         contract = PensionContract(me=self, my_role="insured", other=c)
+                        # print(f"{self} contracts before: {self.contracts}")
                         c.request_contract(contract)
                         contract.draft = False
                         self.contracts.append(contract)
-                        print(f"            ...got accepted.")
+                        # print(f"{self} contracts after: {self.contracts}")
+                        print("            ...got accepted.")
                         break
                     except f.DeniedError:
-                        print(f"            ...got denied.")
+                        print("            ...got denied.")
                         pass
                 else:
-                    print(f"        ...I don't like it.")
+                    print("        ...I don't like it.")
 
 
 class PublicOpinion(f.Entity):
@@ -245,7 +267,7 @@ class PublicOpinion(f.Entity):
         """
         # Slowly recover reputation
         for e_id in self._reputation:
-            print(f"Reputation {e_id}: {self._reputation[e_id]} --> {self._reputation[e_id] * 0.9}")
-            self._reputation[e_id] = int(self._reputation[e_id] * 0.9)
-            if self._reputation[e_id] > PublicOpinion.initial_reputation - 5:
+            print(f"Reputation {e_id}: {self._reputation[e_id]} --> {self._reputation[e_id] * 0.9 * self.world.year_fraction}")
+            self._reputation[e_id] = int(self._reputation[e_id] * 0.9 * self.world.year_fraction)
+            if self._reputation[e_id] > PublicOpinion.initial_reputation - 5 * self.world.year_fraction:
                 self._reputation[e_id] = PublicOpinion.initial_reputation
