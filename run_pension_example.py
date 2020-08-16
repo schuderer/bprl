@@ -38,9 +38,6 @@ def test_individual():
     po.perform_increment()
 
 
-# TODO: contract should be pre-made, then suggested as object instead
-# of having all those specific function for requesting different contracts
-
 if __name__ == "__main__":
     func_name: str
     for func_name in dir(sys.modules[__name__]):

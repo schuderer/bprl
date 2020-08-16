@@ -12,8 +12,8 @@ from gym.utils import seeding
 import numpy as np
 
 # Application-level imports
-from gym_fin.envs.sim_env import expose_to_plugins
-from gym_fin.envs.sim_env import make_step
+# from gym_fin.envs.sim_env import expose_to_plugins
+# from gym_fin.envs.sim_env import make_step
 from gym_fin.envs.sim_interface import SimulationInterface
 
 logger = logging.getLogger(__name__)
@@ -57,19 +57,11 @@ class Role:
             obj.role: str = role
             obj.inverse: str = inverse
             obj.relation: str = relation
-
-            def repr_func(self):
-                return (
-                    f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
-                    f"other={self.other}, reference={self.reference})"
-                )
-
-            obj.__repr__ = repr_func
             cls._roles[role] = obj
             return obj
         else:  # reference to singleton instance
             if role not in cls._roles:
-                ValueError(f"The role {role} has not been defined.")
+                raise ValueError(f"The role {role} has not been defined.")
             return cls._roles[role]
 
     @classmethod
@@ -78,8 +70,8 @@ class Role:
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(my_role={self.my_role}, me={self.me}, "
-            f"other={self.other}, reference={self.reference})"
+            f"{self.__class__.__name__}(role={self.role}, "
+            f"inverse={self.inverse}, relation={self.relation})"
         )
 
 
@@ -111,8 +103,10 @@ class Contract(Seq):
 
     def get_inverse(self):
         inverse_contract = copy.deepcopy(self)
-        inverse_contract.create_id()
-        for attr_name in [a for a in dir(inverse_contract) if not a.startswith("_")]:
+        inverse_contract.id = inverse_contract.create_id()
+        for attr_name in [
+            a for a in dir(inverse_contract) if not a.startswith("_")
+        ]:
             attr = getattr(inverse_contract, attr_name)
             if isinstance(attr, list) and len(attr) == 2:
                 attr.reverse()
@@ -135,6 +129,8 @@ class Contract(Seq):
 
 
 class Trade(Contract):
+    """A two-party trade contract."""
+
     def __init__(
         self,
         me: "Entity",
@@ -146,8 +142,14 @@ class Trade(Contract):
         other_asset: str,
         reference: str,
     ):
+        """Note on perspective:
+        E.g. `my_number` is what I am obliged to *give* (not receive),
+        and, correspondingly, `other_number` is what the other party has
+        to give me.
+        """
         super().__init__(me, my_role, other, reference)
         self.numbers = [my_number, other_number]
+        self.numbers_fulfilled = [0, 0]
         self.assets = [my_asset, other_asset]
 
     def to_contract_request(self) -> Dict:
@@ -155,10 +157,10 @@ class Trade(Contract):
         return {
             "my_role": self.roles[0],
             "other_role": self.roles[1],
-            "asked_number": self.numbers[0],
+            "asked_number": self.numbers[1],
             "asked_asset": self.assets[1],
-            "offered_number": self.numbers[1],
-            "offered_asset": self.assets[1],
+            "offered_number": self.numbers[0],
+            "offered_asset": self.assets[0],
             "reference": self.reference,
         }
 
@@ -168,7 +170,9 @@ class Trade(Contract):
             f"(me={self.entities[0]}, my_role={self.roles[0]}, "
             f"other={self.entities[1]}, reference={self.reference}, "
             f"my_number={self.numbers[0]}, my_asset={self.assets[0]}, "
-            f"other_number={self.numbers[1]}, other_asset={self.assets[1]})"
+            f"my_number_fulfilled={self.numbers_fulfilled[0]}, "
+            f"other_number={self.numbers[1]}, other_asset={self.assets[1]}), "
+            f"other_number_fulfilled={self.numbers_fulfilled[1]}"
             f"{' [in dispute]' if self.in_dispute else ''}"
         )
 
@@ -182,6 +186,7 @@ REQUEST_TYPES = [
 
 
 ASSET_TYPES = [
+    "usd",
     "eur",
     "s&p500",
 ]
@@ -299,10 +304,12 @@ class Resource(Seq):
     ):
         """Create a Resource.
 
-        Params:
-            - asset_type (str): type of asset (eur, usd, disney shares, etc.)
-            - number (float): number of assets (may be fractional)
-            - allow_negative (bool): allow negative number of assets
+        :param asset_type: type of asset (eur, usd, disney shares, etc.)
+        :type asset_type: str
+        :param number: number of assets (may be fractional)
+        :type number: float
+        :param allow_negative: allow negative number of assets
+        :type allow_negative: bool
         """
         self.id = self.create_id()
         self.asset_type = asset_type
@@ -317,9 +324,18 @@ class Resource(Seq):
         )
 
     def to_obs(self) -> Tuple:
+        """Transform the resource object into (part of)
+        an AI Gym observation corresponding to `obs_space`.
+
+        The user can use this for their convenience, or
+        construct their own observations.
+        """
         return (self.asset_type_idx, self.number)
 
     def obs_space(self):
+        """Returns the observation space corresponding to the `to_obs`
+        method.
+        """
         return spaces.Tuple(
             (
                 spaces.Discrete(len(ASSET_TYPES)),
@@ -334,15 +350,13 @@ class Resource(Seq):
     def take(self, number: float) -> "Resource":
         """Take a number of assets out of the `Resource`.
 
-        Params:
-            - number (float): number of assets to withdraw (may be fractional)
+        :param number: number of assets to withdraw (may be fractional)
+        :type number: float
 
-        Returns:
-            A new Resource containing the number of assets withdrawn.
+        :return: A new Resource containing the number of assets withdrawn.
 
-        Throws:
-            `DeniedError` if negative funds are not allowed but subtracting
-            `number` would lead to negative funds.
+        :raises DeniedError: if negative funds are not allowed but subtracting
+                             `number` would lead to negative funds.
         """
         new_number = self.number - number
         if not self.allow_negative and new_number < 0:
@@ -358,12 +372,11 @@ class Resource(Seq):
         """Transfer another `Resource` into this `Resource`. `res` will be
         emptied.
 
-        Params:
-            - res (Resource): the `Resource` to transfer.
+        :param res: the `Resource` to transfer.
+        :type res: Resource
 
-        Throws:
-            DeniedError if `res`'s `asset_type` does not match
-            this `Resource`'s `asset_type`.
+        :raises DeniedError: `asset_type` of `res`'s does not match
+                             this `Resource`'s `asset_type`.
         """
         if res.asset_type != self.asset_type:
             raise DeniedError(
@@ -379,7 +392,17 @@ class Resource(Seq):
 
 
 class Entity(Seq):
+    """A financial Entity.
+    Someone or something (physical or abstract) which can
+    take actions in the simulation.
+    """
+
     def __init__(self, world: FinBaseSimulation):
+        """Create a financial Entity.
+
+        :param world: The overarching simulation object
+        :type world: FinBaseSimulation
+        """
         self.id = self.create_id()
         self.world = world
         self.resources: Dict[str, Resource] = {}
@@ -394,6 +417,10 @@ class Entity(Seq):
         return self
 
     def ensure_active(self):
+        """Raises an EntityInactiveError unless the `Entity` is active.
+
+        :raises EntityInactiveError: `Entity` is inactive
+        """
         if not self.active:
             raise EntityInactiveError(
                 "Attempting to interact with inactive Entity."
@@ -402,6 +429,17 @@ class Entity(Seq):
     def find_contracts(
         self, type: str = None, other: "Entity" = None, reference: str = None
     ) -> List[Contract]:
+        """Returns filtered list of contracts.
+
+        :param type: relation type of contracts to return
+        :type type: optional str, default = any
+        :param other: return only contracts with this other `Entity` object
+        :type other: optional Entity, default = any
+        :param reference: contracts must have this reference
+        :type reference: optional str, default = any
+
+        :return: List of matching `Contract` objects
+        """
         return [
             c
             for c in self.contracts
@@ -423,6 +461,18 @@ class Entity(Seq):
         requesting_entity: "Entity",
         request_contents: Dict,
     ):
+        """Ask this entity to check (not execute!) a request.
+        Usually, the caller of this method is the requesting `Entity`.
+
+        :param request_type: type of the request (used to look up the handling function)
+        :type request_type: str
+        :param requesting_entity: `Entity` object posing the request (usually a self-reference to the caller)
+        :type requesting_entity: Entity
+        :param request_contents: information to be used to decide on the request
+        :type request_contents: dict
+
+        :raises DeniedError: if request would be denied
+        """
         request_func_name = f"check_{request_type}_request"
         request_func = getattr(self, request_func_name)
         request_func(request_type, requesting_entity, request_contents)
@@ -433,6 +483,18 @@ class Entity(Seq):
         requesting_entity: "Entity",
         request_contents: Dict,
     ):
+        """Ask an Entity whether we, the `requesting_entity`, may transfer assets to it.
+        No DeniedError raised = granted.
+
+        Currently, always grants this kind of request.
+
+        :param requesting_entity: `Entity` object posing the request (usually a self-reference to the caller)
+        :type requesting_entity: Entity
+        :param request_contents: information to be used to decide on the request, has to include the keys: reference, number, asset_type
+        :type request_contents: dict
+
+        :raises DeniedError: if request would be denied
+        """
         pass  # always allow for now
 
     def check_outtransfer_request(
@@ -441,6 +503,16 @@ class Entity(Seq):
         requesting_entity: "Entity",
         request_contents: Dict,
     ):
+        """Ask the Entity whether they would transfer assets to the caller (the `requesting_entity`).
+        No DeniedError raised = granted.
+
+        :param requesting_entity: `Entity` object posing the request (usually a self-reference to the caller)
+        :type requesting_entity: Entity
+        :param request_contents: information to be used to decide on the request, has to include the keys: reference, number, asset_type
+        :type request_contents: dict
+
+        :raises DeniedError: if request would be denied
+        """
         # todo: refactor, trades info needs to be available to agent before check
         # print(f"contracts={self.contracts}")
         possible_contracts = self.find_contracts(
@@ -455,11 +527,11 @@ class Entity(Seq):
             if hasattr(c, "numbers") and hasattr(c, "assets")
         ]
         if not payment_contracts:
-            DeniedError(
+            raise DeniedError(
                 f"No matching contracts for outtransfer by {requesting_entity} with request_contents {request_contents}"
             )
-        if len(payment_contracts) > 2:
-            ValueError(
+        if len(payment_contracts) > 1:
+            raise ValueError(
                 f"Found more than one matching contracts for outtransfer "
                 f"by {requesting_entity} with request_contents {request_contents}"
             )
@@ -482,6 +554,22 @@ class Entity(Seq):
         reference: str,
         requesting_entity: "Entity",
     ) -> Resource:
+        """Request the Entity to transfer assets to the caller (the `requesting_entity`).
+        No DeniedError raised = transfer succesfully executed.
+
+        :param number: quantity of the asset we ask for
+        :type number: float
+        :param asset_type: type of the asset (one of `ASSET_TYPES`)
+        :type asset_type: str
+        :param reference: reference text associated with the resource (needs to match contract)
+        :type reference: str
+        :param requesting_entity: `Entity` object posing the request (usually a self-reference to the caller)
+        :type requesting_entity: Entity
+
+        :return: Resource with this transfer's assets
+
+        :raises DeniedError: transfer has been denied
+        """
         self.check_request(
             "outtransfer",
             requesting_entity,
@@ -507,13 +595,25 @@ class Entity(Seq):
         # already checked in check_request that there is exactly one contract
         p = payment_contracts[0]
         res = self.resources[reference].take(number)
-        p.numbers[0] = p.numbers[0] - number
-        p.fulfilled[0] = p.numbers[0] == 0
+        p.numbers_fulfilled[0] += number
+        p.fulfilled[0] = p.numbers_fulfilled[0] >= p.numbers[0]
         return res
 
     def receive_transfer(
         self, resource: "Resource", reference: str, requesting_entity: "Entity"
     ):
+        """Transfer a resource to the Entity.
+        Succesful if no DeniedError is raised.
+
+        :param resource: Resource to transfer. Will be emptied (amount of 0)
+        :type resource: Resource
+        :param reference: reference text corresponding to resource
+        :type reference: str
+        :param requesting_entity: `Entity` object posing the request (usually a self-reference to the caller)
+        :type requesting_entity: Entity
+
+        :raises DeniedError: transfer has been denied
+        """
         self.check_request(
             "intransfer",
             requesting_entity,
@@ -526,17 +626,19 @@ class Entity(Seq):
         # Carry out the request. Only technical checks from this point on.
         if reference in self.resources:
             # TODO: smarter way to reference resources?
-            self.resource[reference].put(resource)
+            self.resources[reference].put(resource)
         else:
             # Make a new resource as copy of the resource we were given
-            self.resource[reference] = resource.take(resource.number)
+            self.resources[reference] = resource.take(resource.number)
 
     def request_contract(self, contract: Contract):
         """Ask this `Entity` to enter a contract with the `Entity` calling
         `request_contract`.
 
-        Params:
-            - contract: draft contract
+        :param contract: draft contract
+        :type contract: Contract
+
+        :raises DeniedError: contract has been denied
         """
         # General checks:
         if not contract.draft:
@@ -561,14 +663,18 @@ class Entity(Seq):
         self.contracts.append(final_contract)
         # print(f"{self} contracts after: {self.contracts}")
 
-    # On from handling requests to actually initiating stuff:
-    def transfer_to(
+    def _transfer_to(
         self,
         number: float,
         asset_type: str,
         reference: str,
         receiving_entity: "Entity",
     ) -> bool:
+        """Convenience method to transfer assets
+        to another Entity (private method).
+
+        :return: true if successful, false otherwise
+        """
         res = self.resources[reference].take(number)
         try:
             receiving_entity.receive_transfer(res, reference, self)
@@ -581,7 +687,7 @@ class Entity(Seq):
             self.resources[reference].put(res)
             return False
 
-    def propose_trade_to(
+    def _propose_trade_to(
         self,
         buy_or_sell: str,
         offered_number: float,
@@ -591,6 +697,11 @@ class Entity(Seq):
         asked_asset: str,
         reference: str,
     ):
+        """Convenience method to propose Trade contract
+        to another Entity (private method).
+
+        :return: true if successful, false otherwise
+        """
         t = Trade(
             me=self,
             my_role=buy_or_sell,
@@ -602,6 +713,7 @@ class Entity(Seq):
         )
         try:
             other.request_contract(t)
+            t.draft = False
             self.contracts.append(t)
             return True
         except DeniedError as e:
@@ -611,30 +723,35 @@ class Entity(Seq):
             return False
 
     # Some test functionality below:
-    @make_step(
-        observation_space=spaces.Box(
-            low=np.array(
-                [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(Role.roles())
-            ),
-            high=np.array(
-                [np.inf] * 2 * (len(ASSET_TYPES) + len(Role.roles()))
-            ),
-        ),
-        observation_space_mapping=lambda self: (
-            self.resources_to_obs()  # + self.relations_to_obs()
-        ),
-        action_space=spaces.Discrete(2),
-        action_space_mapping={0: "A", 1: "B"},
-        reward_mapping=lambda self: 1 if self.active else 0,
-    )
+    # @make_step(
+    #     observation_space=spaces.Box(
+    #         low=np.array(
+    #             [-np.inf] * 2 * len(ASSET_TYPES) + [0] * 2 * len(Role.roles())
+    #         ),
+    #         high=np.array(
+    #             [np.inf] * 2 * (len(ASSET_TYPES) + len(Role.roles()))
+    #         ),
+    #     ),
+    #     observation_space_mapping=lambda self: (
+    #         self.resources_to_obs()  # + self.relations_to_obs()
+    #     ),
+    #     action_space=spaces.Discrete(2),
+    #     action_space_mapping={0: "A", 1: "B"},
+    #     reward_mapping=lambda self: 1 if self.active else 0,
+    # )
     def choose_some_action(self):
-        # custom if-then-else code to act on
-        # (method runs only if no agent is attached here)
+        """DEMO CODE. Please override/define your own when inheriting.
+
+        Default hard-coded code to choose an action.
+        (method runs only if no agent is attached here)
+        """
         return "B"
 
-    @expose_to_plugins
+    # @expose_to_plugins
     def perform_increment(self):
-        """Performs one time-increment of actions for this Entity"""
+        """DEMO CODE. Please override when inheriting.
+
+        Performs one time-increment of actions for this Entity."""
         decision = self.choose_some_action()
         if self.active:
             if decision == "A":
