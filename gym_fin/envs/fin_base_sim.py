@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class DeniedError(Exception):
     def __init__(self, message, counter_offer=None):
         super().__init__(message)
-        self.counter_offer = counter_offer
+        self.counter_offer: "Contract" = counter_offer
 
 
 class EntityInactiveError(Exception):
@@ -88,15 +88,15 @@ class Contract(Seq):
     ):
         my_role_obj: Role = Role(my_role)
 
-        self.id = self.create_id()
-        self.type = my_role_obj.relation
-        self.entities = [me, other]
-        self.roles = [my_role, my_role_obj.inverse]
-        self.reference = reference
-        self.created = me.world.time
-        self.fulfilled = [False, False]
-        self.draft = True
-        self.in_dispute = False
+        self.id: int = self.create_id()
+        self.type: str = my_role_obj.relation
+        self.entities: List["Entity"] = [me, other]
+        self.roles: List[Role] = [my_role, my_role_obj.inverse]
+        self.reference: str = reference
+        self.created: float = me.world.time
+        self.fulfilled: List[bool] = [False, False]
+        self.draft: bool = True
+        self.in_dispute: bool = False
 
     def is_fulfilled(self):
         return all(self.fulfilled)
@@ -148,9 +148,9 @@ class Trade(Contract):
         to give me.
         """
         super().__init__(me, my_role, other, reference)
-        self.numbers = [my_number, other_number]
-        self.numbers_fulfilled = [0, 0]
-        self.assets = [my_asset, other_asset]
+        self.numbers: List[float] = [my_number, other_number]
+        self.numbers_fulfilled: List[bool] = [False, False]
+        self.assets: List[str] = [my_asset, other_asset]
 
     def to_contract_request(self) -> Dict:
         """Please override this method when inheriting"""
@@ -208,11 +208,11 @@ class FinBaseSimulation(SimulationInterface):
             - delta_t (float, default 1.0): One day equals 1.0, one
               month equals 30.0, one year equals 365, one hour equals 0.04.
         """
-        self.time = 0
-        self.delta_t = delta_t
-        self.entities = []
-        self.should_stop = False
-        self.reset_called = False
+        self.time: float = 0
+        self.delta_t: float = delta_t
+        self.entities: List["Entity"] = []
+        self.should_stop: bool = False
+        self.reset_called: bool = False
         self.np_random = None
         self.seed()
 
@@ -262,8 +262,7 @@ class FinBaseSimulation(SimulationInterface):
             e.resources["cash"] = r
 
     def stop(self):
-        """Signal the simulation to stop at the next chance in the run loop.
-        """
+        """Signal the simulation to stop at the next chance in the run loop."""
         self.should_stop = True
 
     def seed(self, seed=None):
@@ -311,11 +310,11 @@ class Resource(Seq):
         :param allow_negative: allow negative number of assets
         :type allow_negative: bool
         """
-        self.id = self.create_id()
-        self.asset_type = asset_type
-        self.asset_type_idx = ASSET_TYPES.index(asset_type)
-        self.number = number  # Number of items of asset (amount)
-        self.allow_negative = allow_negative
+        self.id: int = self.create_id()
+        self.asset_type: str = asset_type
+        self.asset_type_idx: int = ASSET_TYPES.index(asset_type)
+        self.number: float = number  # Number of items of asset (amount)
+        self.allow_negative: bool = allow_negative
 
     def __repr__(self):
         return (
@@ -403,11 +402,11 @@ class Entity(Seq):
         :param world: The overarching simulation object
         :type world: FinBaseSimulation
         """
-        self.id = self.create_id()
-        self.world = world
+        self.id: int = self.create_id()
+        self.world: FinBaseSimulation = world
         self.resources: Dict[str, Resource] = {}
         self.contracts: List[Contract] = []
-        self.active = True
+        self.active: bool = True
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.id})"

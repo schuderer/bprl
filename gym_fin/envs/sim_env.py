@@ -186,10 +186,15 @@ def generate_env(world: SimulationInterface, name: str):
             self.user_done.wait()
             self.sim_done.clear()
             logger.debug("running simulation...")
-            simulation_obj.reset()
-            simulation_obj.run()
-            logger.debug("simulation ended")
-            self.sim_done.set()
+            try:
+                simulation_obj.reset()
+                simulation_obj.run()
+                logger.debug("simulation ended")
+            except BaseException as e:
+                raise RuntimeError(f"Error in simulation code: {e}")
+            finally:
+                self.done = True
+                self.sim_done.set()
 
         # Environment proper
         metadata = {"render.modes": ["human", "ascii"]}  # todo
@@ -234,9 +239,13 @@ def generate_env(world: SimulationInterface, name: str):
                 observation: the initial observation of the space.
                 (Initial reward is assumed to be 0.)
             """
-            logger.debug("Starting simulation thread")
+            self.stop()
+            self.done = False
+            logger.debug("starting simulation thread")
             self.simulation_thread = Thread(
-                target=self.simulation_async, args=(self.simulation,)
+                target=self.simulation_async,
+                args=(self.simulation,),
+                daemon=True,
             )
             self.simulation_thread.start()
 
@@ -263,10 +272,13 @@ def generate_env(world: SimulationInterface, name: str):
                         from the previous action
             """
             self.action = action
-            logger.debug(f"step: action={action} releasing turn")
-            self.run_simulation_code()
+            if self.simulation_thread.is_alive():
+                logger.debug(f"step: action={action} releasing turn")
+                self.run_simulation_code()
+            else:
+                # stopped or crashed. clean up:
+                self.stop()
             # We know the observation, reward, info now
-            self.done = not self.simulation_thread.is_alive()
             logger.debug(
                 f"step: got turn, returning (obs={self.obs}, done={self.done})"
             )
@@ -278,14 +290,25 @@ def generate_env(world: SimulationInterface, name: str):
             )  # properties are updated because callback has been called
 
         def stop(self):
-            # todo
-            pass
+            if self.simulation_thread and self.simulation_thread.is_alive():
+                logger.debug("stopping simulation...")
+                try:
+                    self.simulation.stop()
+                except BaseException as e:
+                    raise RuntimeError(f"Error in simulation code: {e}")
+                # Let the simulation finish up
+                self.run_simulation_code()
+            self.obs = None
+            self.reward = 0
+            self.done = True
+            self.info = {}
 
         def render(self, mode="human", close=False):
             pass
             # raise NotImplementedError
 
         def close(self):
+            self.stop()
             if self.viewer:
                 self.viewer.close()
                 self.viewer = None

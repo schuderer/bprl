@@ -62,14 +62,16 @@ nox.options.sessions = ["format", "lint", "tests-3.6", "coverage", "docs"]
 @nox.session(name="format", python=my_py_ver)
 def format_code(session):
     """Run code reformatter"""
-    session.install("black")
+    session.install("black==20.8b1")
     session.run("black", "-l", max_line_length, *autoformat)
 
 
 @nox.session(python=my_py_ver)
 def lint(session):
     """Run code style checker"""
-    session.install("flake8", "flake8-import-order", "black")
+    session.install(
+        "flake8==3.8.4", "flake8-import-order==0.18.1", "black==20.8b1"
+    )
     session.run("black", "-l", max_line_length, "--check", *autoformat)
     session.run(
         "flake8",
@@ -85,7 +87,10 @@ def lint(session):
 def tests(session):
     """Run the unit test suite"""
     # safety_check = "safety" in session.posargs
-    session.install("-r", "requirements-dev.txt")
+    if session.python == my_py_ver:
+        session.install("-r", f"requirements-dev-frozen-{session.python}.txt")
+    else:
+        session.install("-r", "requirements-dev.txt")
     # session.install('-e', '.')  # we're testing a package
     # session.run('pipenv', 'install', '-e', '.')
     session.run(*pytest_args)
@@ -94,7 +99,7 @@ def tests(session):
 @nox.session(python=my_py_ver)
 def coverage(session):
     """Run the unit test suite and check coverage"""
-    session.install("-r", "requirements-dev.txt")
+    session.install("-r", f"requirements-dev-frozen-{session.python}.txt")
     session.run(
         *pytest_args,
         "--cov=" + package_name,
@@ -123,7 +128,7 @@ def docs(session):
     else:  # darwin, linux, linux2
         session.run("rm", "-rf", "docs/build", external=True)
 
-    session.install("sphinx")
+    session.install("Sphinx==3.5.3")
     session.install(".")
     # install_requirements(session, safety_check=False)
     # session.install('-e', '.')  # we're dealing with a package

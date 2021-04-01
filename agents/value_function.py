@@ -19,13 +19,13 @@ class QFunction:
     ):
         """Initialize a Tabular Q-Value (State-Action-Value) Approximator.
 
-            Params:
-                env: the openai gym compatible environment to use
-                default_value=0: initialize state-action value (Q) table with this value
-                discretize_bins: discretize any non-discrete state dimensions with this
-                                 number of bins
-                discretize_log: use exponentially increasing instead of equal bin sizes
-                                (the further from zero, the coarser the bin size)
+        Params:
+            env: the openai gym compatible environment to use
+            default_value=0: initialize state-action value (Q) table with this value
+            discretize_bins: discretize any non-discrete state dimensions with this
+                             number of bins
+            discretize_log: use exponentially increasing instead of equal bin sizes
+                            (the further from zero, the coarser the bin size)
         """
         # q_table: initial q table (optional, for continuing with pre-filled approximator,
         #          empty by default)
