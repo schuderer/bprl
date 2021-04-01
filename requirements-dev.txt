@@ -1,0 +1,27 @@
+# Prod requirements
+-r requirements.txt
+
+# Install gym_fin in editable mode (development mode)
+-e .
+
+# Dev requirements
+nox
+ipykernel
+python-language-server[all]
+#line-profiler
+#cython
+#line-profiler # git = "https://github.com/rkern/line_profiler"
+pytest
+pytest-cov
+pytest-mock
+twine
+wheel
+setuptools
+#flake8
+#Sphinx"
+#sphinx-autobuild
+#black==19.3b0
+matplotlib
+seaborn
+#stable-baselines[mpi]
+#tensorflow

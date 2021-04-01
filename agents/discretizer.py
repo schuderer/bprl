@@ -154,6 +154,8 @@ class Discretizer:
                 ]
             )
         logger.warning("Grid: [<low>, <high>] / <bins> => <splits>")
-        for l, h, b, splits in zip(low, high, bins, grid):
-            logger.warning("    [{}, {}] / {} => {}".format(l, h, b, splits))
+        for lo, hi, bin, splits in zip(low, high, bins, grid):
+            logger.warning(
+                "    [{}, {}] / {} => {}".format(lo, hi, bin, splits)
+            )
         return grid
