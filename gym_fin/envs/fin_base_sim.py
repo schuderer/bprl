@@ -239,7 +239,7 @@ class FinBaseSimulation(SimulationInterface):
             and len([e for e in self.entities if e.active]) > 0
         ):
             for i, e in enumerate(self.entities):
-                logger.info(f"Entity {i} doing its thing...")
+                logger.debug(f"Entity {i} doing its thing...")
                 e.perform_increment()
             self.time += self.delta_t
 
@@ -660,6 +660,45 @@ class Entity(Seq):
         final_contract.draft = False
         # print(f"{self} contracts before: {self.contracts}")
         self.contracts.append(final_contract)
+        # print(f"{self} contracts after: {self.contracts}")
+
+    def dissolve_contract(self, my_or_other_contract: Contract):
+        """Ask this `Entity` to disolve a contract
+
+        :param my_or_other_contract: existing contrat
+        :type contract: Contract
+
+        :raises DeniedError: contract dissolution has been denied
+        """
+        # General checks:
+        if my_or_other_contract in self.contracts:
+            # It's my own version of the contract
+            my_contract = my_or_other_contract
+            other_entity = my_contract.entities[1]
+        else:
+            # Other entity's version of our contract
+            other_entity = my_or_other_contract.entities[0]
+            my_contracts = self.find_contracts(
+                type=my_or_other_contract.type,
+                other=other_entity,
+            )
+            if len(my_contracts) == 0:
+                raise DeniedError(
+                    f"Cannot dissolve non-existing contract {my_or_other_contract}"
+                )
+            my_contract = my_contracts[0]
+
+        # print(f"##### ME: {self}, MY CONTRACT: {my_contract}")
+
+        self.check_request(
+            f"dissolve_{my_contract.type}_contract",
+            requesting_entity=other_entity,
+            request_contents=my_contract.to_contract_request(),
+        )
+
+        # Successful if no DeniedError raised
+        # print(f"{self} contracts before: {self.contracts}")
+        self.contracts.pop(self.contracts.index(my_contract))
         # print(f"{self} contracts after: {self.contracts}")
 
     def _transfer_to(

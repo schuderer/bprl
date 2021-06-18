@@ -13,10 +13,6 @@ class PensionSimError(Exception):
     pass
 
 
-class InactiveError(Exception):
-    pass
-
-
 class PensionSim(f.FinBaseSimulation):
     """Main class of an example pension services simulation for demonstrating
     the `fin_env` framework.
@@ -24,6 +20,7 @@ class PensionSim(f.FinBaseSimulation):
     Entity classes:
         - `PensionInsuranceCompany` (only one)
         - `Individual` (0-N)
+        - `PublicOpinion` (exactly one)
 
     The two types of classes can be connected via `PensionContract`s.
 
@@ -31,28 +28,31 @@ class PensionSim(f.FinBaseSimulation):
     """
 
     # all inherited methods (even if unchanged) listed here for clarity
-    def __init__(self, delta_t: float = 365):
+    def __init__(self, delta_t: float = 365, max_individuals: int = 100):
         super().__init__(delta_t)
         # own code here (optional)
         self.reset_called = False
         self.year_fraction = 365 / delta_t
+        self.max_individuals = max_individuals
 
-    def run(self):
+    def run(self, max_t: int = -1):
         if not self.reset_called:
             raise PensionSimError("Simulation must be reset before it can be run")
         while (
             not self.should_stop
-            and len([e for e in self.entities if e.active]) > 0
+            # and len([e for e in self.entities if e.active]) > 1
+            and len([e for e in self.entities if isinstance(e, PensionInsuranceCompany) and e.active]) >= 1
+            and (max_t == -1 or max_t > self.time)
         ):
             self.run_increment()
 
     def run_increment(self):
         for i, e in enumerate(self.entities):
             if e.active:
-                logger.info(f"Entity {i} doing its thing...")
+                logger.info(f"Entity {i} doing its thing at time {self.time}...")
                 e.perform_increment()
             else:
-                logger.info(f"Skipping inactive Entity {i}...")
+                logger.info(f"Skipping inactive Entity {i} at time {self.time}...")
         self.time += self.delta_t
 
     def reset(self):
@@ -65,6 +65,7 @@ class PensionSim(f.FinBaseSimulation):
         self.time = 0.0
         self.should_stop = False
         self.entities = [PensionInsuranceCompany(self), PublicOpinion(self)]
+        self.entities.extend([Individual(self) for _ in range(self.max_individuals)])
 
     def stop(self):
         super().stop()
@@ -111,15 +112,31 @@ class PensionInsuranceCompany(f.Entity):
     ):
         pass  # always allow for now
 
+    def check_dissolve_insurance_contract_request(
+        self,
+        request_type: str,
+        requesting_entity: f.Entity,
+        request_contents: Dict,
+    ):
+        pass  # always allow for now
+
     @expose_to_plugins
     def perform_increment(self):
         """Performs one time increment of action(s) for a
         `PensionInsuranceCompany`
         """
+        logger.debug(f"{self} performing increment...")
+
         # Spend cost to keep doors open
         # can throw away the resulting Resource object)
-        r = self.resources["cash"].take(self.running_cost)
-        print(f"{self} spending {r}. {self.resources['cash']} left.")
+        try:
+            r = self.resources["cash"].take(self.running_cost)
+        except f.DeniedError as e:
+            logger.info(f"{self} could not spend running cost {self.running_cost}: {e}")
+            self.active = False
+            return
+
+        logger.info(f"{self} spent {r}. {self.resources['cash']} left.")
         c: PensionContract
         for c in self.find_contracts(type="insurance"):
             # print(f"insurance contract entities: {c.entities}")
@@ -130,17 +147,17 @@ class PensionInsuranceCompany(f.Entity):
                     premium = client.request_transfer(-value, "eur", "cash", self)
                     self.resources["cash"].put(premium)
                 except f.DeniedError as e:
-                    print(f"{self} could not get {-value} from {client}: {e}")
+                    logger.info(f"{self} could not get {-value} from {client}: {e}")
             elif value > 0:
                 try:
                     pension = self.resources["cash"].take(value)
                 except f.DeniedError as e:
-                    print(f"{self} could not take {value} from {self.resources['cash']}: {e}")
+                    logger.info(f"{self} could not take {value} from {self.resources['cash']}: {e}")
                 else:
                     try:
                         client.receive_transfer(pension, "cash", self)
                     except f.DeniedError as e:
-                        print(f"{self} could not give {pension} to {client}: {e}")
+                        logger.info(f"{self} could not give {pension} to {client}: {e}")
                         self.resources["cash"].put(pension)
                         del(pension)
 
@@ -172,16 +189,27 @@ class Individual(f.Entity):
         years_passed = int((self.world.time - self._creation_time) / 365)
         return 20 + years_passed
 
+    def check_dissolve_insurance_contract_request(
+        self,
+        request_type: str,
+        requesting_entity: f.Entity,
+        request_contents: Dict,
+    ):
+        pass  # always allow for now
+
     # @expose_to_plugins
     def perform_increment(self):
         """Performs one time increment of action(s) for an `Individual`"""
+        logger.debug(f"{self} performing increment...")
         self.ensure_active()
 
         if self.age >= 67:
             self.income = 0  # Stop working
+            logger.debug(f"{self} retired at age {self.age}")
 
         if self.world.np_random.uniform() < self.world.year_fraction * utils.cached_cdf(int(self.age / 2) * 2, 85, 10):
             self.active = False  # Die
+            logger.debug(f"{self} died at age {self.age}")
             return
 
         # Earn salary
@@ -193,13 +221,18 @@ class Individual(f.Entity):
             # Spend living expenses (we won't simulate how this money circulates,
             # can throw away the resulting Resource object)
             r = self.resources["cash"].take(self.living_expenses)
-            print(f"{self} spending {r}. {self.resources['cash']} left.")
+            logger.info(f"{self} spending {r}. {self.resources['cash']} left.")
         except f.DeniedError:
             po = self.world.find_entities(PublicOpinion)[0]
             for c in self.find_contracts(type="insurance"):
                 po.accuse(c.entities[1], 100)
-            print("Broke")
-            self.active = False  # Starve
+            logger.info(f"{self} starved at age {self.age}")
+            # Dissolve contract
+            for c in self.find_contracts(type="insurance"):
+                c.entities[1].dissolve_contract(c)
+                self.dissolve_contract(c)
+            # Starve
+            self.active = False
             return
 
         if self.resources["cash"].number < self.living_expenses / 2:
@@ -208,32 +241,32 @@ class Individual(f.Entity):
             for c in self.find_contracts(type="insurance"):
                 po.accuse(c.entities[1], 20)
 
-        print(self.age)
+        logger.info(self.age)
         if self.age >= 25 and not self.find_contracts(type="insurance"):
             # Try to get some pension insurance
-            print("Trying to get insurance...")
+            logger.info("Trying to get insurance...")
             companies = self.world.find_entities(PensionInsuranceCompany)
             po = self.world.find_entities(PublicOpinion)[0]
             best_companies_first = sorted(companies, key=po.reputation, reverse=True)
             for c in best_companies_first:
                 rep = po.reputation(c)
-                print(f"    ...Looking at {c} with reputation {rep}...")
+                logger.info(f"    ...Looking at {c} with reputation {rep}...")
                 if self.world.np_random.uniform() < self.world.year_fraction * utils.cached_cdf(int(rep / 100) * 100, 0, 1500):
                     try:
-                        print("        ...suggesting contract...")
+                        logger.info("        ...suggesting contract...")
                         contract = PensionContract(me=self, my_role="insured", other=c)
                         # print(f"{self} contracts before: {self.contracts}")
                         c.request_contract(contract)
                         contract.draft = False
                         self.contracts.append(contract)
                         # print(f"{self} contracts after: {self.contracts}")
-                        print("            ...got accepted.")
+                        logger.info("            ...got accepted.")
                         break
                     except f.DeniedError:
-                        print("            ...got denied.")
+                        logger.info("            ...got denied.")
                         pass
                 else:
-                    print("        ...I don't like it.")
+                    logger.info("        ...I don't like it.")
 
 
 class PublicOpinion(f.Entity):
@@ -265,6 +298,7 @@ class PublicOpinion(f.Entity):
     def perform_increment(self):
         """Performs one time increment of action(s) for `PublicOpinion`
         """
+        logger.debug(f"{self} performing increment...")
         # Slowly recover reputation
         for e_id in self._reputation:
             print(f"Reputation {e_id}: {self._reputation[e_id]} --> {self._reputation[e_id] * 0.9 * self.world.year_fraction}")
