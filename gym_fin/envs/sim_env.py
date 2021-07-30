@@ -52,7 +52,9 @@ def make_step(
         - action_space: AI Gym action space definition
         - action_space_mapping (dict or callable): maps return values or thrown
           exceptions to action indices or action values in the action_space
+          (if callable, signature needs to match decorated function)
         - reward_mapping (callable): function that returns a reward
+          (signature needs to match decorated function)
 
     Any callables will be called with the parameters of the decorated function.
     """

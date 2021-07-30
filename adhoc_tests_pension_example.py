@@ -45,14 +45,14 @@ def notest_individual():
     po.perform_increment()
 
 
-def test_pensionsim_static():
+def notest_pensionsim_static():
     reload(p)
     s = p.PensionSim(max_individuals=10)
     s.reset()
     s.run()  # max_t=20 * 365)
 
 
-def notest_pensionsim_fixed_agent():
+def test_pensionsim_fixed_agent():
     import numpy as np
     from gym import spaces
     from gym.envs.registration import register
@@ -80,8 +80,11 @@ def notest_pensionsim_fixed_agent():
             clients_obs,
         ])
 
-    def reward_from_company(c):
-        return None
+    def reward_from_company(company, individual):
+        if company.resources["cash"].number > 0:
+            return 1
+        else:
+            return 0
 
     p.PensionInsuranceCompany.determine_client_transaction = make_step(
         # [Curr Client Age, Company funds, Reputation, Num Clients]
@@ -99,12 +102,19 @@ def notest_pensionsim_fixed_agent():
     s = p.PensionSim(max_individuals=10)
     env_cls = generate_env(s, "examples.pension.PensionInsuranceCompany.determine_client_transaction")
     register(
-        id="Greenhouse-v0",
+        id="PensionDemo-v0",
         entry_point=env_cls,  # "env_def:env_cls",
     )
 
-    s.reset()
-    s.run()  # max_t=20 * 365)
+    import gym
+    env = gym.make("PensionDemo-v0")
+    env.reset()
+    rew = 0
+    obs = [0.0] * 4
+    done = False
+    while not done:
+        action = 0.5  # static for now
+        obs, rew, done, info = env.step(action)
 
 
 if __name__ == "__main__":
