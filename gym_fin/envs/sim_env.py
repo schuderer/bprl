@@ -1,7 +1,9 @@
 # Stdlib imports
-from inspect import isclass, signature
+import copy
 import logging
-from threading import Event, Thread
+from inspect import isclass, signature
+from threading import Event, Thread, get_ident
+from typing import Optional, Union
 
 # Third-party imports
 import gym
@@ -38,6 +40,7 @@ def make_step(
     action_space,
     action_space_mapping,
     reward_mapping,
+    simulation_obj: Optional[SimulationInterface] = None,
 ):
     """Decorator to turn an arbitrary function/method into a step() interface,
     providing what is essentially a hook/callback into agent code.
@@ -55,6 +58,11 @@ def make_step(
           (if callable, signature needs to match decorated function)
         - reward_mapping (callable): function that returns a reward
           (signature needs to match decorated function)
+        - simulation_obj (optional SimulationInterface): tie the env to a
+          particular simulation object instead of any use of the function
+          (use this to make vectorized environments possible). This will
+          create a deep copy of simulation_obj whenever a new
+          environment is created.
 
     Any callables will be called with the parameters of the decorated function.
     """
@@ -65,13 +73,13 @@ def make_step(
         )
     obs_from_args = observation_space_mapping
 
-    def perform_action(action):
+    def as_action_space(user_code_action):
         if callable(action_space_mapping):
-            return action_space_mapping(action)
+            return action_space_mapping(user_code_action)
         else:
-            action_val = action_space_mapping[action]
+            action_val = action_space_mapping[user_code_action]
             if isclass(action_val) and issubclass(action_val, Exception):
-                raise action_val(f"action {action}")
+                raise action_val(f"action {user_code_action}")
             else:
                 return action_val
 
@@ -88,7 +96,11 @@ def make_step(
             )
 
     def decorator(func):
-        name = qualname(func)
+        copied_simulation_obj = copy.deepcopy(simulation_obj)
+        if copied_simulation_obj:
+            name = str(id(copied_simulation_obj)) + "-" + qualname(func)
+        else:
+            name = qualname(func)
 
         # pre-register step_view
         global env_metadata
@@ -98,23 +110,25 @@ def make_step(
             env_metadata["step_views"][name] = {
                 "observation_space": observation_space,
                 "action_space": action_space,
-                "callback": None,  # todo: anything else?
+                "callback": None,
+                "simulation_obj": copied_simulation_obj,
             }
 
         def step_wrapper(*args, **kwargs):
             """This is the "decision function" called by simulation
             code which is providing an AI-Gym-step()-like interface.
             """
+            logger.debug(f"SIM calls decision-function with {args}, {kwargs}")
             global env_metadata
             step_view = env_metadata["step_views"][name]
             if step_view["callback"]:
                 before_reward = reward_mapping(*args, **kwargs)
                 before_obs = obs_from_args(*args, **kwargs)
                 before_info = {}
-                action = step_view["callback"](
+                user_code_action = step_view["callback"](
                     before_obs, before_reward, before_info
                 )
-                return perform_action(action)
+                return as_action_space(user_code_action)
             else:
                 # No subscribers to step(), execute func's code instead
                 return func(*args, **kwargs)
@@ -158,14 +172,15 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
 
 
 # https://stackoverflow.com/a/18506625/2654383
-def generate_env(world: SimulationInterface, name: str):
+def generate_env(world: SimulationInterface, decision_func: Union[str, callable]):
     """Generates and returns an OpenAI Gym compatible Environment class.
 
     Params:
         - world: A simulation object which implements the methods
           `reset` and `run` of `SimulationInterface`.
-        - name: A string describing a method or function inside `world` or any
-          objects therein. This method or function is only available if it has
+        - decision_func: A callable, or string, to a method or
+          function inside `world` or any objects therein.
+          This method or function is only available if it has
           been turned into a `step` callback using the `@make_step` decorator.
     """
 
@@ -175,19 +190,23 @@ def generate_env(world: SimulationInterface, name: str):
             self.user_done.clear()
             self.sim_done.set()
             logger.debug("callback waiting for turn...")
+            print(self, id(self), get_ident())
             self.user_done.wait()
 
         def run_simulation_code(self):
             self.sim_done.clear()
             self.user_done.set()
             logger.debug("user code waiting for turn...")
+            print(self, id(self), get_ident())
             self.sim_done.wait()
 
         def simulation_async(self, simulation_obj):
             logger.debug("waiting to start simulation")
+            print(self, id(self), get_ident())
             self.user_done.wait()
             self.sim_done.clear()
             logger.debug("running simulation...")
+            print(self, id(self), get_ident())
             try:
                 simulation_obj.reset()
                 simulation_obj.run()
@@ -209,7 +228,7 @@ def generate_env(world: SimulationInterface, name: str):
             self.info = None
             self.action = None
             self.simulation_thread = None
-            self.simulation = world
+            self.simulation = world  # only used (to override sim_obj given when calling make_step) if not None
             self.user_done = Event()
             self.sim_done = Event()
             self.user_done.clear()
@@ -227,8 +246,26 @@ def generate_env(world: SimulationInterface, name: str):
                 )
                 return self.action
 
-            register_env_callback(name, _my_callback)
+            if callable(decision_func):
+                static_name = qualname(decision_func)
+            else:
+                static_name = decision_func
             global env_metadata
+            matching_names = []
+            for n in env_metadata["step_views"]:
+                parts = n.split("-")
+                if (len(parts) == 2 and parts[1].lower() == static_name.lower()) or n.lower() == static_name.lower():
+                    matching_names.append(n)
+            if len(matching_names) != 1:
+                raise ValueError(
+                    f"Could not identify function '{static_name}' "
+                    f"(matches = {matching_names}). Available functions are "
+                    f"{{list(env_metadata['step_views'].keys())}}"
+                )
+            name = full_name if full_name in env_metadata["step_views"] else static_name
+
+            full_name = str(id(self.simulation)) + "-" + static_name
+            register_env_callback(name, _my_callback)
             step_views = env_metadata["step_views"]
             self.observation_space = step_views[name]["observation_space"]
             self.action_space = step_views[name]["action_space"]
@@ -241,6 +278,7 @@ def generate_env(world: SimulationInterface, name: str):
                 observation: the initial observation of the space.
                 (Initial reward is assumed to be 0.)
             """
+            logger.debug(f"USER calls reset({self})")
             self.stop()
             self.done = False
             logger.debug("starting simulation thread")
@@ -252,6 +290,7 @@ def generate_env(world: SimulationInterface, name: str):
             self.simulation_thread.start()
 
             logger.debug("reset: releasing turn")
+            print(self, id(self), get_ident())
             self.run_simulation_code()
             # We know the observation now
             logger.debug(f"reset got turn, returning obs {self.obs}")
@@ -273,6 +312,7 @@ def generate_env(world: SimulationInterface, name: str):
                 - info: a dictionary containing other diagnostic information
                         from the previous action
             """
+            logger.debug(f"USER calls step({self}, {action})")
             self.action = action
             if self.simulation_thread.is_alive():
                 logger.debug(f"step: action={action} releasing turn")

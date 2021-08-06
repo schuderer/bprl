@@ -28,12 +28,13 @@ class PensionSim(f.FinBaseSimulation):
     """
 
     # all inherited methods (even if unchanged) listed here for clarity
-    def __init__(self, delta_t: float = 365, max_individuals: int = 100):
+    def __init__(self, delta_t: float = 365, max_individuals: int = 100, max_steps: int = -1):
         super().__init__(delta_t)
         # own code here (optional)
         self.reset_called = False
         self.year_fraction = 365 / delta_t
         self.max_individuals = max_individuals
+        self.max_days = max_steps * delta_t
 
     def run(self, max_t: int = -1):
         if not self.reset_called:
@@ -54,6 +55,8 @@ class PensionSim(f.FinBaseSimulation):
             else:
                 logger.info(f"Skipping inactive Entity {i} at time {self.time}...")
         self.time += self.delta_t
+        if self.max_days > 0 and self.time >= self.max_days:
+            self.stop()
 
     def reset(self):
         """Make this an empty simulation with exactly one

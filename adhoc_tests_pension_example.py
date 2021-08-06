@@ -86,28 +86,28 @@ def test_pensionsim_fixed_agent():
         else:
             return 0
 
-    p.PensionInsuranceCompany.determine_client_transaction = make_step(
-        # [Curr Client Age, Company funds, Reputation, Num Clients]
-        # (normalized to make broadly usable)
-        observation_space=spaces.Box(
-            low=np.array([0.0] * 4),
-            high=np.array([1.0] * 4)
-        ),
-        observation_space_mapping=obs_from_company,
-        action_space=spaces.Box(low=0.0, high=1.0, shape=(1,)),
-        action_space_mapping=lambda w: min(max(0, w * 1000), 1000),
-        reward_mapping=reward_from_company
-    )(p.PensionInsuranceCompany.determine_client_transaction)
+    # p.PensionInsuranceCompany.determine_client_transaction = make_step(
+    #     # [Curr Client Age, Company funds, Reputation, Num Clients]
+    #     # (normalized to make broadly usable)
+    #     observation_space=spaces.Box(
+    #         low=np.array([0.0] * 4),
+    #         high=np.array([1.0] * 4)
+    #     ),
+    #     observation_space_mapping=obs_from_company,
+    #     action_space=spaces.Box(low=0.0, high=1.0, shape=(1,)),
+    #     action_space_mapping=lambda w: min(max(0, w * 1000), 1000),
+    #     reward_mapping=reward_from_company
+    # )(p.PensionInsuranceCompany.determine_client_transaction)
 
-    s = p.PensionSim(max_individuals=10)
-    env_cls = generate_env(s, "examples.pension.PensionInsuranceCompany.determine_client_transaction")
-    register(
-        id="PensionDemo-v0",
-        entry_point=env_cls,  # "env_def:env_cls",
-    )
+    # s = p.PensionSim(max_individuals=10)
+    # env_cls = generate_env(s, "examples.pension.PensionInsuranceCompany.determine_client_transaction")
+    # register(
+    #     id="PensionDemo-v0",
+    #     entry_point=env_cls,  # "env_def:env_cls",
+    # )
 
     import gym
-    env = gym.make("PensionDemo-v0")
+    env = gym.make("PensionExample-v0")
     env.reset()
     rew = 0
     obs = [0.0] * 4
