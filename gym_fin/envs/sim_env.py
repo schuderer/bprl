@@ -1,9 +1,9 @@
 # Stdlib imports
 import copy
-import logging
 from inspect import isclass, signature
-from threading import Event, Thread, get_ident
-from typing import Optional, Union
+import logging
+from threading import Event, get_ident, Thread
+from typing import Callable, Union
 
 # Third-party imports
 import gym
@@ -40,7 +40,6 @@ def make_step(
     action_space,
     action_space_mapping,
     reward_mapping,
-    simulation_obj: Optional[SimulationInterface] = None,
 ):
     """Decorator to turn an arbitrary function/method into a step() interface,
     providing what is essentially a hook/callback into agent code.
@@ -58,18 +57,13 @@ def make_step(
           (if callable, signature needs to match decorated function)
         - reward_mapping (callable): function that returns a reward
           (signature needs to match decorated function)
-        - simulation_obj (optional SimulationInterface): tie the env to a
-          particular simulation object instead of any use of the function
-          (use this to make vectorized environments possible). This will
-          create a deep copy of simulation_obj whenever a new
-          environment is created.
 
     Any callables will be called with the parameters of the decorated function.
     """
 
     if not callable(observation_space_mapping):
         raise AssertionError(
-            "observation_space_mapping " "must be a function reference"
+            "observation_space_mapping must be a function reference"
         )
     obs_from_args = observation_space_mapping
 
@@ -96,11 +90,7 @@ def make_step(
             )
 
     def decorator(func):
-        copied_simulation_obj = copy.deepcopy(simulation_obj)
-        if copied_simulation_obj:
-            name = str(id(copied_simulation_obj)) + "-" + qualname(func)
-        else:
-            name = qualname(func)
+        name = qualname(func)
 
         # pre-register step_view
         global env_metadata
@@ -110,8 +100,7 @@ def make_step(
             env_metadata["step_views"][name] = {
                 "observation_space": observation_space,
                 "action_space": action_space,
-                "callback": None,
-                "simulation_obj": copied_simulation_obj,
+                # "callback_{thread id}": None,
             }
 
         def step_wrapper(*args, **kwargs):
@@ -121,11 +110,12 @@ def make_step(
             logger.debug(f"SIM calls decision-function with {args}, {kwargs}")
             global env_metadata
             step_view = env_metadata["step_views"][name]
-            if step_view["callback"]:
+            callback = step_view.get(f"callback_{get_ident()}")
+            if callback:
                 before_reward = reward_mapping(*args, **kwargs)
                 before_obs = obs_from_args(*args, **kwargs)
                 before_info = {}
-                user_code_action = step_view["callback"](
+                user_code_action = callback(
                     before_obs, before_reward, before_info
                 )
                 return as_action_space(user_code_action)
@@ -138,11 +128,14 @@ def make_step(
     return decorator
 
 
-def register_env_callback(name: str, callback):  # , flatten_obs=True):
+def register_env_callback(
+    sim_obj: SimulationInterface, name: str, callback
+):  # , flatten_obs=True):
     """Register a callable as the `callback` to be called from the
     function referred to by the fully qualified `name`.
 
     Params:
+        - sim_obj (SimulationInterface): Simulation for which to register
         - name (str): The fully qualified name of the Entity's function you
           want to replace by an agent, e.g. `"fin_entity.Entity.check_request"`
         - callback: The agent's function to register.
@@ -155,15 +148,19 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
     global env_metadata
     step_views = env_metadata["step_views"]
     if name in step_views:
-        step_view = step_views[name]
-        if "callback" in step_view and step_view["callback"]:
-            logger.warning(f"Overwriting existing callback for {name}")
-        step_view.update(
+        specific_name = f"{str(id(sim_obj))}-{name}"
+        if specific_name in step_views:
+            logger.warning(
+                f"Overwriting existing callback for {specific_name}"
+            )
+        step_views[specific_name] = copy.deepcopy(step_views[name])
+        step_views[specific_name].update(
             {
                 "callback": callback,
                 # "flatten_obs": flatten_obs,
             }
         )
+        return specific_name
     else:
         raise ValueError(
             f"No such registered function: '{name}'. "
@@ -172,14 +169,16 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
 
 
 # https://stackoverflow.com/a/18506625/2654383
-def generate_env(world: SimulationInterface, decision_func: Union[str, callable]):
+def generate_env(
+    world: SimulationInterface, decision_func: Union[str, Callable]
+):
     """Generates and returns an OpenAI Gym compatible Environment class.
 
     Params:
-        - world: A simulation object which implements the methods
+        - world (SimulationInterface): A simulation object which implements the methods
           `reset` and `run` of `SimulationInterface`.
-        - decision_func: A callable, or string, to a method or
-          function inside `world` or any objects therein.
+        - decision_func: A callable, or string, to a method/function
+          inside `world` or any objects related to it.
           This method or function is only available if it has
           been turned into a `step` callback using the `@make_step` decorator.
     """
@@ -190,23 +189,30 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
             self.user_done.clear()
             self.sim_done.set()
             logger.debug("callback waiting for turn...")
-            print(self, id(self), get_ident())
+            # print(self, id(self), get_ident())
             self.user_done.wait()
 
         def run_simulation_code(self):
+            env_metadata["step_views"][self.static_func_name][
+                f"callback_{get_ident()}"
+            ] = env_metadata["step_views"][self.specific_func_name]["callback"]
+            # print(f"setting callback_{get_ident()}")
             self.sim_done.clear()
             self.user_done.set()
             logger.debug("user code waiting for turn...")
-            print(self, id(self), get_ident())
+            # print(self, id(self), get_ident())
             self.sim_done.wait()
 
         def simulation_async(self, simulation_obj):
+            env_metadata["step_views"][self.static_func_name][
+                f"callback_{get_ident()}"
+            ] = env_metadata["step_views"][self.specific_func_name]["callback"]
             logger.debug("waiting to start simulation")
-            print(self, id(self), get_ident())
+            # print(self, id(self), get_ident())
             self.user_done.wait()
             self.sim_done.clear()
             logger.debug("running simulation...")
-            print(self, id(self), get_ident())
+            # print(self, id(self), get_ident())
             try:
                 simulation_obj.reset()
                 simulation_obj.run()
@@ -215,6 +221,7 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
                 raise RuntimeError(f"Error in simulation code: {e}")
             finally:
                 self.done = True
+                self.reward = 0
                 self.sim_done.set()
 
         # Environment proper
@@ -228,11 +235,15 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
             self.info = None
             self.action = None
             self.simulation_thread = None
-            self.simulation = world  # only used (to override sim_obj given when calling make_step) if not None
+            self.simulation = copy.deepcopy(
+                world
+            )  # each env needs its own unique sim
             self.user_done = Event()
             self.sim_done = Event()
             self.user_done.clear()
             self.sim_done.set()
+            self.static_func_name = None
+            self.specific_func_name = None
 
             def _my_callback(obs, reward, info):
                 self.obs = obs
@@ -247,28 +258,20 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
                 return self.action
 
             if callable(decision_func):
-                static_name = qualname(decision_func)
+                self.static_func_name = qualname(decision_func)
             else:
-                static_name = decision_func
+                self.static_func_name = decision_func
             global env_metadata
-            matching_names = []
-            for n in env_metadata["step_views"]:
-                parts = n.split("-")
-                if (len(parts) == 2 and parts[1].lower() == static_name.lower()) or n.lower() == static_name.lower():
-                    matching_names.append(n)
-            if len(matching_names) != 1:
-                raise ValueError(
-                    f"Could not identify function '{static_name}' "
-                    f"(matches = {matching_names}). Available functions are "
-                    f"{{list(env_metadata['step_views'].keys())}}"
-                )
-            name = full_name if full_name in env_metadata["step_views"] else static_name
-
-            full_name = str(id(self.simulation)) + "-" + static_name
-            register_env_callback(name, _my_callback)
             step_views = env_metadata["step_views"]
-            self.observation_space = step_views[name]["observation_space"]
-            self.action_space = step_views[name]["action_space"]
+            self.specific_func_name = register_env_callback(
+                self.simulation, self.static_func_name, _my_callback
+            )
+            self.observation_space = step_views[self.specific_func_name][
+                "observation_space"
+            ]
+            self.action_space = step_views[self.specific_func_name][
+                "action_space"
+            ]
 
         def reset(self):
             """Resets the state of the environment, returning
@@ -290,7 +293,7 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
             self.simulation_thread.start()
 
             logger.debug("reset: releasing turn")
-            print(self, id(self), get_ident())
+            # print(self, id(self), get_ident())
             self.run_simulation_code()
             # We know the observation now
             logger.debug(f"reset got turn, returning obs {self.obs}")
@@ -340,7 +343,7 @@ def generate_env(world: SimulationInterface, decision_func: Union[str, callable]
                     raise RuntimeError(f"Error in simulation code: {e}")
                 # Let the simulation finish up
                 self.run_simulation_code()
-            self.obs = None
+            # self.obs = None  # Stay on last obs on terminated episodes
             self.reward = 0
             self.done = True
             self.info = {}
@@ -403,13 +406,13 @@ def call_with_handlers(func, name, args=(), kwargs={}):
 
 class IteratorWrapper:
     def __init__(self, name, inner_iterator):
-        print(f"creating iterator for {name}: {inner_iterator}")
+        # print(f"creating iterator for {name}: {inner_iterator}")
         self._name = name
         self.inner = inner_iterator
 
     def __next__(self):
-        print(f"__next__ has been called for {self._name}")
-        print(f"call_with_handlers({self.inner.__next__}, {self._name})")
+        # print(f"__next__ has been called for {self._name}")
+        # print(f"call_with_handlers({self.inner.__next__}, {self._name})")
         return call_with_handlers(
             self.inner.__class__.__next__, self._name, args=(self.inner,)
         )
@@ -434,7 +437,7 @@ class IterableWrapper:
         )
 
     def __iter__(self):
-        print(f"returning iterator for name {self._name}, inner {self.inner}")
+        # print(f"returning iterator for name {self._name}, inner {self.inner}")
         inner_iterator = iter(self.inner)
         return IteratorWrapper(self._name, inner_iterator)
 

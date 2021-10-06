@@ -58,14 +58,16 @@ class Discretizer:
             return np.reshape(np.array(vals), (1,))
         else:
             vals_array = np.array(vals)
+            if len(vals_array.shape) == 0:
+                vals_array = vals_array.reshape((1,))
             if (
                 len(vals_array.shape) != 1
                 or vals_array.shape[0] != self.grid.shape[0]
             ):
                 raise ValueError(
                     "Observation to discretize must have shape "
-                    "({},), but has shape {}".format(
-                        self.grid.shape[0], vals_array.shape
+                    "({},), but has shape {} (obs={})".format(
+                        self.grid.shape[0], vals_array.shape, vals_array
                     )
                 )
             return np.array(

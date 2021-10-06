@@ -7,8 +7,8 @@
 # Dev requirements
 nox
 ipykernel
-python -m pip install 'python-lsp-server[all]'
-python -m pip install git+https://github.com/tomv564/pyls-mypy.git
+python-lsp-server[all]
+git+https://github.com/tomv564/pyls-mypy.git
 #line-profiler
 #cython
 #line-profiler # git = "https://github.com/rkern/line_profiler"

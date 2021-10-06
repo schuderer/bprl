@@ -519,7 +519,6 @@ class Entity(Seq):
             other=requesting_entity,
             reference=request_contents["reference"],
         )
-        # print(f"possible_contracts={possible_contracts}")
         payment_contracts = [
             c
             for c in possible_contracts
@@ -530,8 +529,9 @@ class Entity(Seq):
                 f"No matching contracts for outtransfer by {requesting_entity} with request_contents {request_contents}"
             )
         if len(payment_contracts) > 1:
+            print(f"payment_contracts={payment_contracts}")
             raise ValueError(
-                f"Found more than one matching contracts for outtransfer "
+                f"Found more than one matching contract for outtransfer "
                 f"by {requesting_entity} with request_contents {request_contents}"
             )
         t = payment_contracts[0]
@@ -665,7 +665,7 @@ class Entity(Seq):
     def dissolve_contract(self, my_or_other_contract: Contract):
         """Ask this `Entity` to disolve a contract
 
-        :param my_or_other_contract: existing contrat
+        :param my_or_other_contract: existing contract
         :type contract: Contract
 
         :raises DeniedError: contract dissolution has been denied
@@ -725,40 +725,40 @@ class Entity(Seq):
             self.resources[reference].put(res)
             return False
 
-    def _propose_trade_to(
-        self,
-        buy_or_sell: str,
-        offered_number: float,
-        offered_asset: str,
-        other: "Entity",
-        asked_number: float,
-        asked_asset: str,
-        reference: str,
-    ):
-        """Convenience method to propose Trade contract
-        to another Entity (private method).
-
-        :return: true if successful, false otherwise
-        """
-        t = Trade(
-            me=self,
-            my_role=buy_or_sell,
-            other=other,
-            my_number=offered_number,
-            my_asset=offered_asset,
-            other_number=asked_number,
-            other_asset=asked_asset,
-        )
-        try:
-            other.request_contract(t)
-            t.draft = False
-            self.contracts.append(t)
-            return True
-        except DeniedError as e:
-            logger.info(
-                f"{self}'s trade contract was denied by {other}: {e.msg}"
-            )
-            return False
+    # def _propose_trade_to(
+    #     self,
+    #     buy_or_sell: str,
+    #     offered_number: float,
+    #     offered_asset: str,
+    #     other: "Entity",
+    #     asked_number: float,
+    #     asked_asset: str,
+    #     reference: str,
+    # ):
+    #     """Convenience method to propose Trade contract
+    #     to another Entity (private method).
+    #
+    #     :return: true if successful, false otherwise
+    #     """
+    #     t = Trade(
+    #         me=self,
+    #         my_role=buy_or_sell,
+    #         other=other,
+    #         my_number=offered_number,
+    #         my_asset=offered_asset,
+    #         other_number=asked_number,
+    #         other_asset=asked_asset,
+    #     )
+    #     try:
+    #         other.request_contract(t)
+    #         t.draft = False
+    #         self.contracts.append(t)
+    #         return True
+    #     except DeniedError as e:
+    #         logger.info(
+    #             f"{self}'s trade contract was denied by {other}: {e.msg}"
+    #         )
+    #         return False
 
     # Some test functionality below:
     # @make_step(

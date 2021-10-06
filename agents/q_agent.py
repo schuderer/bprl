@@ -146,6 +146,15 @@ class Agent:
 
             # Take action
             observation, reward, done, info = self.env.step(action)
+            if t % 50 == 0:
+                logger.debug(
+                    "t=%s, last action=%s, obs=%s, rew=%s, done=%s",
+                    t,
+                    action,
+                    observation,
+                    reward,
+                    done,
+                )
 
             # Update the state that we acted on
             if type(self.env).__name__ == "PensionEnv":

@@ -1,4 +1,4 @@
-The gym-fin library for OpenAI Gym
+The gym-fin suite for OpenAI Gym
 **************************************************************************
 
 .. image:: https://travis-ci.org/schuderer/bprl.svg?branch=master
@@ -12,6 +12,19 @@ The gym-fin library for OpenAI Gym
 
 .. note::
 
-   This is unpublished work in progress. Please do not cite.
+   This work is partially unpublished and in progress.
+   Please do not cite the repository as a whole, but use
+   the recommendations for the specific components below.
 
-Business Process Control using Reinforcement Learning.
+
+To install ``Sim-Env``:
+
+.. code:: console
+
+  $ pip install git+https://github.com/schuderer/bprl
+
+For usage of, or to cite, ``Sim-Env``, please use our `PAAMS Demo Paper <https://doi.org/10.1007/978-3-030-85739-4_39>`_:
+  Schuderer A., Bromuri S., van Eekelen M. (2021) Sim-Env: Decoupling OpenAI Gym Environments from Simulation Models. In: Dignum F., Corchado J.M., De La Prieta F. (eds) Advances in Practical Applications of Agents, Multi-Agent Systems, and Social Good. The PAAMS Collection. PAAMS 2021. Lecture Notes in Computer Science, vol 12946. Springer, Cham. https://doi.org/10.1007/978-3-030-85739-4_39
+
+For more in-depth explanations and code examples, please find
+`supplementary material on Sim-Env here <http://arxiv.org/abs/2102.09824>`_.

@@ -1,8 +1,9 @@
 # Currently only contains a few manual tests of the simulation code
 import logging
 import sys
-
 from importlib import reload
+
+import numpy as np
 
 import examples.pension as p
 
@@ -10,7 +11,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 # logging.setLevel(logging.INFO)
 logging.getLogger("gym_fin.envs.fin_base_sim").setLevel(logging.DEBUG)
-logging.getLogger("examples.pension").setLevel(logging.DEBUG)
+logging.getLogger("examples.pension").setLevel(logging.WARNING)
 
 
 def notest_pensionsim():
@@ -52,7 +53,7 @@ def notest_pensionsim_static():
     s.run()  # max_t=20 * 365)
 
 
-def test_pensionsim_fixed_agent():
+def notest_pensionsim_fixed_agent():
     import numpy as np
     from gym import spaces
     from gym.envs.registration import register
@@ -115,6 +116,77 @@ def test_pensionsim_fixed_agent():
     while not done:
         action = 0.5  # static for now
         obs, rew, done, info = env.step(action)
+
+
+def learn(agent, episodes, max_steps):
+    overall = 0
+    last_100 = np.zeros((100,))
+    num_actions = agent.q_function.action_disc.space.n
+    for episode in range(episodes):
+        logger.debug('size of q table: %s',
+                     len(agent.q_function.q_table.keys()) * num_actions)
+
+        q_table, cumul_reward, num_steps, info = \
+            agent.run_episode(max_steps=max_steps, exploit=False)
+
+        overall += cumul_reward
+        last_100[episode % 100] = cumul_reward
+        logger.warning('Episode %s finished after %s timesteps with '
+                       'cumulative reward %s (last 100 mean = %s)',
+                       episode, num_steps, cumul_reward, last_100.mean())
+        if type(agent.env).__name__ == 'PensionEnv':
+            logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
+                           '#humans %s, reputation %s',
+                           agent.env.year,
+                           len(q_table.keys()) * num_actions,
+                           agent.epsilon, agent.alpha,
+                           len([h for h in agent.env.humans if h.active]),
+                           info['company'].reputation)
+        else:
+            logger.warning(
+                'q table size %s, epsilon %s, alpha %s',
+                len(q_table.keys()), agent.epsilon, agent.alpha)
+
+    logger.warning('Overall cumulative reward: %s', overall / episodes)
+    logger.warning('Average reward last 100 episodes: %s', last_100.mean())
+    return q_table
+
+
+def test_pension_q_learn():
+    import gym
+    import examples  # registers the env
+    from agents import q_agent, value_function
+
+    env = gym.make("PensionExample-v0")
+
+    num_bins = 12
+    log_bins = True
+
+    q_func = value_function.QFunction(env,
+                                      default_value=0,
+                                      discretize_bins=num_bins,
+                                      discretize_log=log_bins)
+
+    agent = q_agent.Agent(env,
+                          q_function=q_func,
+                          update_policy=q_agent.greedy,
+                          exploration_policy=q_agent.epsilon_greedy,
+                          gamma=0.99,
+                          min_alpha=0.1,
+                          min_epsilon=0.1,
+                          alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
+                          epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
+                          )
+
+    q_table = learn(agent, episodes=1000, max_steps=20000)
+
+    logger.info('###### TESTING: ######')
+
+    logger.setLevel(logging.INFO)
+
+    for _ in range(3):
+        reward = agent.run_episode(exploit=True)[1]
+        logger.info("reward: %s", reward)
 
 
 if __name__ == "__main__":
