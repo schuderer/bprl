@@ -7,7 +7,7 @@ import pkgutil
 
 # https://stackoverflow.com/questions/3365740/how-to-import-all-submodules
 def import_submodules(package, recursive=True):
-    """ Import all submodules of a module, recursively, including subpackages
+    """Import all submodules of a module, recursively, including subpackages
 
     :param package: package (name or actual module)
     :type package: str | module

@@ -1,7 +1,9 @@
 # Stdlib imports
+import copy
 from inspect import isclass, signature
 import logging
-from threading import Event, Thread
+from threading import Event, get_ident, Thread
+from typing import Callable, Union
 
 # Third-party imports
 import gym
@@ -52,24 +54,26 @@ def make_step(
         - action_space: AI Gym action space definition
         - action_space_mapping (dict or callable): maps return values or thrown
           exceptions to action indices or action values in the action_space
+          (if callable, signature needs to match decorated function)
         - reward_mapping (callable): function that returns a reward
+          (signature needs to match decorated function)
 
     Any callables will be called with the parameters of the decorated function.
     """
 
     if not callable(observation_space_mapping):
         raise AssertionError(
-            "observation_space_mapping " "must be a function reference"
+            "observation_space_mapping must be a function reference"
         )
     obs_from_args = observation_space_mapping
 
-    def perform_action(action):
+    def as_action_space(user_code_action):
         if callable(action_space_mapping):
-            return action_space_mapping(action)
+            return action_space_mapping(user_code_action)
         else:
-            action_val = action_space_mapping[action]
+            action_val = action_space_mapping[user_code_action]
             if isclass(action_val) and issubclass(action_val, Exception):
-                raise action_val(f"action {action}")
+                raise action_val(f"action {user_code_action}")
             else:
                 return action_val
 
@@ -96,23 +100,25 @@ def make_step(
             env_metadata["step_views"][name] = {
                 "observation_space": observation_space,
                 "action_space": action_space,
-                "callback": None,  # todo: anything else?
+                # "callback_{thread id}": None,
             }
 
         def step_wrapper(*args, **kwargs):
             """This is the "decision function" called by simulation
             code which is providing an AI-Gym-step()-like interface.
             """
+            logger.debug(f"SIM calls decision-function with {args}, {kwargs}")
             global env_metadata
             step_view = env_metadata["step_views"][name]
-            if step_view["callback"]:
-                before_obs = obs_from_args(*args, **kwargs)
+            callback = step_view.get(f"callback_{get_ident()}")
+            if callback:
                 before_reward = reward_mapping(*args, **kwargs)
+                before_obs = obs_from_args(*args, **kwargs)
                 before_info = {}
-                action = step_view["callback"](
+                user_code_action = callback(
                     before_obs, before_reward, before_info
                 )
-                return perform_action(action)
+                return as_action_space(user_code_action)
             else:
                 # No subscribers to step(), execute func's code instead
                 return func(*args, **kwargs)
@@ -122,11 +128,14 @@ def make_step(
     return decorator
 
 
-def register_env_callback(name: str, callback):  # , flatten_obs=True):
+def register_env_callback(
+    sim_obj: SimulationInterface, name: str, callback
+):  # , flatten_obs=True):
     """Register a callable as the `callback` to be called from the
     function referred to by the fully qualified `name`.
 
     Params:
+        - sim_obj (SimulationInterface): Simulation for which to register
         - name (str): The fully qualified name of the Entity's function you
           want to replace by an agent, e.g. `"fin_entity.Entity.check_request"`
         - callback: The agent's function to register.
@@ -139,15 +148,19 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
     global env_metadata
     step_views = env_metadata["step_views"]
     if name in step_views:
-        step_view = step_views[name]
-        if "callback" in step_view and step_view["callback"]:
-            logger.warning(f"Overwriting existing callback for {name}")
-        step_view.update(
+        specific_name = f"{str(id(sim_obj))}-{name}"
+        if specific_name in step_views:
+            logger.warning(
+                f"Overwriting existing callback for {specific_name}"
+            )
+        step_views[specific_name] = copy.deepcopy(step_views[name])
+        step_views[specific_name].update(
             {
                 "callback": callback,
                 # "flatten_obs": flatten_obs,
             }
         )
+        return specific_name
     else:
         raise ValueError(
             f"No such registered function: '{name}'. "
@@ -156,14 +169,17 @@ def register_env_callback(name: str, callback):  # , flatten_obs=True):
 
 
 # https://stackoverflow.com/a/18506625/2654383
-def generate_env(world: SimulationInterface, name: str):
+def generate_env(
+    world: SimulationInterface, decision_func: Union[str, Callable]
+):
     """Generates and returns an OpenAI Gym compatible Environment class.
 
     Params:
-        - world: A simulation object which implements the methods
+        - world (SimulationInterface): A simulation object which implements the methods
           `reset` and `run` of `SimulationInterface`.
-        - name: A string describing a method or function inside `world` or any
-          objects therein. This method or function is only available if it has
+        - decision_func: A callable, or string, to a method/function
+          inside `world` or any objects related to it.
+          This method or function is only available if it has
           been turned into a `step` callback using the `@make_step` decorator.
     """
 
@@ -172,24 +188,41 @@ def generate_env(world: SimulationInterface, name: str):
         def run_user_code(self):
             self.user_done.clear()
             self.sim_done.set()
-            logger.debug(f"callback waiting for turn...")
+            logger.debug("callback waiting for turn...")
+            # print(self, id(self), get_ident())
             self.user_done.wait()
 
         def run_simulation_code(self):
+            env_metadata["step_views"][self.static_func_name][
+                f"callback_{get_ident()}"
+            ] = env_metadata["step_views"][self.specific_func_name]["callback"]
+            # print(f"setting callback_{get_ident()}")
             self.sim_done.clear()
             self.user_done.set()
-            logger.debug(f"user code waiting for turn...")
+            logger.debug("user code waiting for turn...")
+            # print(self, id(self), get_ident())
             self.sim_done.wait()
 
         def simulation_async(self, simulation_obj):
+            env_metadata["step_views"][self.static_func_name][
+                f"callback_{get_ident()}"
+            ] = env_metadata["step_views"][self.specific_func_name]["callback"]
             logger.debug("waiting to start simulation")
+            # print(self, id(self), get_ident())
             self.user_done.wait()
             self.sim_done.clear()
             logger.debug("running simulation...")
-            simulation_obj.reset()
-            simulation_obj.run()
-            logger.debug("simulation ended")
-            self.sim_done.set()
+            # print(self, id(self), get_ident())
+            try:
+                simulation_obj.reset()
+                simulation_obj.run()
+                logger.debug("simulation ended")
+            except BaseException as e:
+                raise RuntimeError(f"Error in simulation code: {e}")
+            finally:
+                self.done = True
+                self.reward = 0
+                self.sim_done.set()
 
         # Environment proper
         metadata = {"render.modes": ["human", "ascii"]}  # todo
@@ -202,11 +235,15 @@ def generate_env(world: SimulationInterface, name: str):
             self.info = None
             self.action = None
             self.simulation_thread = None
-            self.simulation = world
+            self.simulation = copy.deepcopy(
+                world
+            )  # each env needs its own unique sim
             self.user_done = Event()
             self.sim_done = Event()
             self.user_done.clear()
             self.sim_done.set()
+            self.static_func_name = None
+            self.specific_func_name = None
 
             def _my_callback(obs, reward, info):
                 self.obs = obs
@@ -220,11 +257,21 @@ def generate_env(world: SimulationInterface, name: str):
                 )
                 return self.action
 
-            register_env_callback(name, _my_callback)
+            if callable(decision_func):
+                self.static_func_name = qualname(decision_func)
+            else:
+                self.static_func_name = decision_func
             global env_metadata
             step_views = env_metadata["step_views"]
-            self.observation_space = step_views[name]["observation_space"]
-            self.action_space = step_views[name]["action_space"]
+            self.specific_func_name = register_env_callback(
+                self.simulation, self.static_func_name, _my_callback
+            )
+            self.observation_space = step_views[self.specific_func_name][
+                "observation_space"
+            ]
+            self.action_space = step_views[self.specific_func_name][
+                "action_space"
+            ]
 
         def reset(self):
             """Resets the state of the environment, returning
@@ -234,13 +281,19 @@ def generate_env(world: SimulationInterface, name: str):
                 observation: the initial observation of the space.
                 (Initial reward is assumed to be 0.)
             """
-            logger.debug("Starting simulation thread")
+            logger.debug(f"USER calls reset({self})")
+            self.stop()
+            self.done = False
+            logger.debug("starting simulation thread")
             self.simulation_thread = Thread(
-                target=self.simulation_async, args=(self.simulation,)
+                target=self.simulation_async,
+                args=(self.simulation,),
+                daemon=True,
             )
             self.simulation_thread.start()
 
             logger.debug("reset: releasing turn")
+            # print(self, id(self), get_ident())
             self.run_simulation_code()
             # We know the observation now
             logger.debug(f"reset got turn, returning obs {self.obs}")
@@ -262,11 +315,15 @@ def generate_env(world: SimulationInterface, name: str):
                 - info: a dictionary containing other diagnostic information
                         from the previous action
             """
+            logger.debug(f"USER calls step({self}, {action})")
             self.action = action
-            logger.debug(f"step: action={action} releasing turn")
-            self.run_simulation_code()
+            if self.simulation_thread.is_alive():
+                logger.debug(f"step: action={action} releasing turn")
+                self.run_simulation_code()
+            else:
+                # stopped or crashed. clean up:
+                self.stop()
             # We know the observation, reward, info now
-            self.done = not self.simulation_thread.is_alive()
             logger.debug(
                 f"step: got turn, returning (obs={self.obs}, done={self.done})"
             )
@@ -278,14 +335,25 @@ def generate_env(world: SimulationInterface, name: str):
             )  # properties are updated because callback has been called
 
         def stop(self):
-            # todo
-            pass
+            if self.simulation_thread and self.simulation_thread.is_alive():
+                logger.debug("stopping simulation...")
+                try:
+                    self.simulation.stop()
+                except BaseException as e:
+                    raise RuntimeError(f"Error in simulation code: {e}")
+                # Let the simulation finish up
+                self.run_simulation_code()
+            # self.obs = None  # Stay on last obs on terminated episodes
+            self.reward = 0
+            self.done = True
+            self.info = {}
 
         def render(self, mode="human", close=False):
             pass
             # raise NotImplementedError
 
         def close(self):
+            self.stop()
             if self.viewer:
                 self.viewer.close()
                 self.viewer = None
@@ -338,13 +406,13 @@ def call_with_handlers(func, name, args=(), kwargs={}):
 
 class IteratorWrapper:
     def __init__(self, name, inner_iterator):
-        print(f"creating iterator for {name}: {inner_iterator}")
+        # print(f"creating iterator for {name}: {inner_iterator}")
         self._name = name
         self.inner = inner_iterator
 
     def __next__(self):
-        print(f"__next__ has been called for {self._name}")
-        print(f"call_with_handlers({self.inner.__next__}, {self._name})")
+        # print(f"__next__ has been called for {self._name}")
+        # print(f"call_with_handlers({self.inner.__next__}, {self._name})")
         return call_with_handlers(
             self.inner.__class__.__next__, self._name, args=(self.inner,)
         )
@@ -369,7 +437,7 @@ class IterableWrapper:
         )
 
     def __iter__(self):
-        print(f"returning iterator for name {self._name}, inner {self.inner}")
+        # print(f"returning iterator for name {self._name}, inner {self.inner}")
         inner_iterator = iter(self.inner)
         return IteratorWrapper(self._name, inner_iterator)
 

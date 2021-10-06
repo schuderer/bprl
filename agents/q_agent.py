@@ -54,22 +54,22 @@ class Agent:
     ):
         """Initialize the reinforcement learning agent.
 
-            Params:
-                env: the openai gym compatible environment to use
-                q_function: initial q function
-                update_policy: the policy (a python function reference) which is used
-                               to get the value estimate for updates. Default: greedy
-                exploration_policy: the exploration policy (a python function reference),
-                                    default: epsilon_greedy
-                gamma: discount factor (1 = endless deferred reward, 0 = myopic)
-                min_alpha: min learning rate (1 = newest observation is new truth, 0 = no learning),
-                           alpha will decay from 1 towards this value over time using alpha_decay
-                min_epsilon: min probability of exploration (0 = no exploration, 1 = no exploitation),
-                             epsilon will decay from 1 towards this value over time using epsilon_decay
-                alpha_decay: (default: 1.0 == instant decay) simulated annealing,
-                             decay learning rate alpha towards zero by this factor each episode
-                epsilon_decay: (default: 1.0 == instant decay) decay epsilon
-                               towards no exploration by this factor each episode
+        Params:
+            env: the openai gym compatible environment to use
+            q_function: initial q function
+            update_policy: the policy (a python function reference) which is used
+                           to get the value estimate for updates. Default: greedy
+            exploration_policy: the exploration policy (a python function reference),
+                                default: epsilon_greedy
+            gamma: discount factor (1 = endless deferred reward, 0 = myopic)
+            min_alpha: min learning rate (1 = newest observation is new truth, 0 = no learning),
+                       alpha will decay from 1 towards this value over time using alpha_decay
+            min_epsilon: min probability of exploration (0 = no exploration, 1 = no exploitation),
+                         epsilon will decay from 1 towards this value over time using epsilon_decay
+            alpha_decay: (default: 1.0 == instant decay) simulated annealing,
+                         decay learning rate alpha towards zero by this factor each episode
+            epsilon_decay: (default: 1.0 == instant decay) decay epsilon
+                           towards no exploration by this factor each episode
 
         """
         logger.info(locals())
@@ -146,6 +146,15 @@ class Agent:
 
             # Take action
             observation, reward, done, info = self.env.step(action)
+            if t % 50 == 0:
+                logger.debug(
+                    "t=%s, last action=%s, obs=%s, rew=%s, done=%s",
+                    t,
+                    action,
+                    observation,
+                    reward,
+                    done,
+                )
 
             # Update the state that we acted on
             if type(self.env).__name__ == "PensionEnv":
