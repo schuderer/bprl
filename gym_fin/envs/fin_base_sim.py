@@ -342,6 +342,7 @@ class Resource(Seq):
                     low=-np.inf if self.allow_negative else 0,
                     high=np.inf,
                     shape=(),
+                    dtype=np.float32
                 ),
             )
         )

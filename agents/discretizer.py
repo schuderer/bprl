@@ -65,7 +65,7 @@ class Discretizer:
                 or vals_array.shape[0] != self.grid.shape[0]
             ):
                 raise ValueError(
-                    "Observation to discretize must have shape "
+                    "Observation/action to discretize must have shape "
                     "({},), but has shape {} (obs={})".format(
                         self.grid.shape[0], vals_array.shape, vals_array
                     )
@@ -152,7 +152,7 @@ class Discretizer:
             grid = np.array(
                 [
                     space_func(low[dim], high[dim], bins[dim] + 1)
-                    for dim in range(len(bins))
+                    for dim in range(len(bins))  # TODO: shouldn't this be e.g. len(low)??
                 ]
             )
         logger.warning("Grid: [<low>, <high>] / <bins> => <splits>")

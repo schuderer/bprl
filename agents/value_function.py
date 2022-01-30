@@ -55,7 +55,7 @@ class QFunction:
 
         action_values = self._get_action_values(state_key, self.q_table)
         action_index, action_value = policy(action_values, policy_params)
-        action = int(self.action_disc.undiscretize(action_index))
+        action = self.action_disc.undiscretize(action_index)  # TODO check: was originally wrapped in int(), but float values should be supported
         return action, action_value
 
     def update_value(self, observation, action, value, save=None, load=None):

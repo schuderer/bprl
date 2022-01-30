@@ -73,9 +73,10 @@ def register_step_function():
             # obs boxes: curr_client_age, funds, reput, num_clients
             low=np.array([0, 0, -10000, 0]),
             high=np.array([100, 1000000, 0, 1000]),
+            dtype=np.float32
         ),
         observation_space_mapping=obs_from_company,
-        action_space=spaces.Box(low=0.0, high=1.0, shape=(1,)),
+        action_space=spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
         action_space_mapping=temp_act_map,
         # action_space=spaces.Box(low=-50000, high=50000, shape=(1,)),
         # action_space_mapping=lambda a: a,  # temp_act_map,

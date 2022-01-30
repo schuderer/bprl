@@ -7,7 +7,7 @@ import random
 import numpy as np
 
 # Application imports
-from .utils import LazyStr
+from agents.utils import LazyStr
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +17,18 @@ def greedy(list_of_state_action_values, params):
     # np.random.choice(np.flatnonzero(actions == np.max(actions)))
     best = []
     bestActionVal = max(list_of_state_action_values)
+    # print(f"bestActionVal: {bestActionVal}")
     for i, aval in enumerate(list_of_state_action_values):
         if aval == bestActionVal:
             best.append(i)
+    # print(f"best: {best}")
     if len(best) == 1:
         bestActionIdx = best[0]
+        # print(f"bestIdx: {bestActionIdx}")
     else:
         bestActionIdx = np.random.choice(best)
 
+    # print(bestActionIdx, bestActionVal)
     return bestActionIdx, bestActionVal
 
 
