@@ -37,7 +37,7 @@ lazy-object-proxy==1.6.0
 matplotlib==3.4.1
 mccabe==0.6.1
 nox==2020.12.31
-numpy==1.20.2
+numpy==1.21.0
 packaging==20.9
 pandas==1.2.3
 parso==0.8.2
