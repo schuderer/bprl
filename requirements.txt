@@ -1,3 +1,6 @@
 numpy
 gym
 pandas
+Cython
+scipy
+seaborn
