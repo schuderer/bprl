@@ -131,8 +131,8 @@ class Agent:
             # self.env.render()
             logger.debug("Observation: %s", prev_observation)
 
-            if exploit and hasattr(self.env, "render"):
-                self.env.render()
+            # if exploit and hasattr(self.env, "render"):
+            #     self.env.render()
 
             action, action_val = self.q_function.select_action(
                 prev_observation,
@@ -222,4 +222,8 @@ class Agent:
                 break
             t += 1
 
-        return self.q_function.q_table, cumul_reward, t + 1, info
+        if hasattr(self.q_function, "q_table"):
+            q_table = self.q_function.q_table
+        else:
+            q_table = None
+        return q_table, cumul_reward, t + 1, info

@@ -34,6 +34,7 @@ class Discretizer:
     # https://github.com/udacity/deep-reinforcement-learning/blob/master/discretization/Discretization_Solution.ipynb
 
     def __init__(self, env_space, num_bins, log_bins):
+        self.num_bins = num_bins
         if type(env_space) is gym.spaces.box.Box:
             logger.warning("- low: %s", env_space.low)
             logger.warning("- high: %s", env_space.high)

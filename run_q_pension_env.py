@@ -13,11 +13,11 @@ from matplotlib import pyplot as plt
 # import gym_fin.envs.pension_env as penv
 # import gym_fin
 from agents import q_agent
-from agents import value_function
 import logging
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
+is_tsetlin = False
 
 
 # @do_profile(follow=[q_agent.Agent.run_episode,
@@ -31,11 +31,16 @@ def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
     num_actions = agent.q_function.action_disc.space.n
     rewards = {"episode": [], "reward": []}
     for episode in range(episodes):
-        logger.debug('size of q table: %s',
-                     len(agent.q_function.q_table.keys()) * num_actions)
+        if hasattr(agent.q_function, "q_table"):
+            logger.debug('size of q table: %s',
+                         len(agent.q_function.q_table.keys()) * num_actions)
 
         q_table, cumul_reward, num_steps, info = \
             agent.run_episode(max_steps=max_steps, exploit=False)
+        if q_table is not None:
+            q_table_size = len(q_table.keys()) * num_actions
+        else:
+            q_table_size = None
 
         overall += cumul_reward
         last_100[episode % 100] = cumul_reward
@@ -46,14 +51,14 @@ def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
             logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
                            '#humans %s, reputation %s',
                            agent.env.year,
-                           len(q_table.keys()) * num_actions,
+                           q_table_size,
                            agent.epsilon, agent.alpha,
                            len([h for h in agent.env.humans if h.active]),
                            info['company'].reputation)
         else:
             logger.warning(
                 'q table size %s, epsilon %s, alpha %s',
-                len(q_table.keys()), agent.epsilon, agent.alpha)
+                q_table_size, agent.epsilon, agent.alpha)
         if (episode + 1) % eval_interval == 0:
             eval_reward = 0
             for _ in range(num_eval_runs):
@@ -73,13 +78,17 @@ if __name__ == "__main__":
     logging.getLogger("gym_fin.envs.sim_env").setLevel(logging.INFO)
     logging.getLogger("examples.pension").setLevel(logging.WARNING)
 
+    # env_name = "Pendulum-v1"  # "PensionExample-v0"
+    env_name = "CartPole-v1"
+    # env_name = "MountainCar-v0"
+
     if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
-        csv_pattern = "./q_pension_rewards*.csv" if len(sys.argv) == 2 else sys.argv[2]
+        csv_pattern = f"./q_{env_name}_rewards*.csv" if len(sys.argv) == 2 else sys.argv[2]
 
         # Activate seaborn
         seaborn.set()
-        plt.figure(f"Results PensionExample-v0")
-        plt.title("PensionExample-v0", fontsize=14)
+        plt.figure(f"Results {env_name}")
+        plt.title(env_name, fontsize=14)
 
         plt.xlabel("Timesteps", fontsize=14)
         plt.ylabel("Score", fontsize=14)
@@ -102,20 +111,42 @@ if __name__ == "__main__":
         std_ = df.iloc[:, 1:].std(axis=1)
         std_error = std_ / np.sqrt(df.shape[0])
 
-        plt.plot(df["episode"], mean_, label=f"Q-Disc", linewidth=3)
+        plt.plot(df["episode"], mean_, label=f"Q-Tsetlin", linewidth=3)
         plt.fill_between(df["episode"], mean_ + std_error, mean_ - std_error, alpha=0.5)
 
         plt.legend()
         plt.show()
 
         exit(0)
+    elif len(sys.argv) >= 2 and sys.argv[1].lower() == "tsetlin":
+        from agents.tsetlin_value_function import TsetlinQFunction as QFunction
+        # from agents.tsetlin_value_function import TsetlinRegParams
+        algo = "Tsetlin"
+        print("Running TSETLIN-REGRESSOR BASED Q-LEARNING")
+    elif len(sys.argv) >= 2 and sys.argv[1].lower() == "q-disc":
+        from agents.value_function import QFunction
+        algo = "Q-Disc"
+        print("Running DISCRETIZED Q-LEARNING")
+    else:
+        print("Please specify an algorithm: 'q-disc' or 'tsetlin'")
+        exit(1)
 
     # Run Q-Learning
     # fmt: off
+    # param_matrix = {
+    #     "PensionExample-v0": {
+    #         "ValueFunction": {
+    #             "num_bins": 12,
+    #         },
+    #         "QAgent": {
+    #
+    #         }
+    #     }
+    # }
 
     import examples  # registers the env
-    env = gym.make('PensionExample-v0')
-    num_bins = 12
+    env = gym.make(env_name)
+    num_bins = 12 if algo == "Q-Disc" else 16
     log_bins = True
 
     # env = gym.make('gym_fin:Pension-v0')
@@ -148,8 +179,8 @@ if __name__ == "__main__":
     # num_bins = 1
     # log_bins = False
 
-    for runs in range(5):
-        logger.info(f'###### LEARNING RUN {runs + 1} ######')
+    def worker(run_no):
+        logger.info(f'###### LEARNING RUN {run_no + 1} ######')
 
         # seed = 7
         #
@@ -160,26 +191,26 @@ if __name__ == "__main__":
         # random.seed(seed)
         # np.random.seed(seed)
 
-        q_func = value_function.QFunction(env,
-                                          default_value=0,
-                                          discretize_bins=num_bins,
-                                          discretize_log=log_bins)
+        q_func = QFunction(env,
+                           discretize_bins=num_bins,
+                           discretize_log=log_bins)
 
         agent = q_agent.Agent(env,
                               q_function=q_func,
                               update_policy=q_agent.greedy,
                               exploration_policy=q_agent.epsilon_greedy,
                               gamma=0.99,
-                              min_alpha=0.1,
-                              min_epsilon=0.1,
-                              alpha_decay=1,   # default 1 = fixed alpha (min_alpha)
-                              epsilon_decay=1  # default: 1 = fixed epsilon (instant decay)
+                              min_alpha=0.1,  # TODO: was 0.1, changed for Tsetlin
+                              min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
+                              alpha_decay=0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
+                              epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
                               )
 
-        q_table, rewards = learn(agent, episodes=3000, max_steps=365*300)
+        q_table, rewards = learn(agent, episodes=10000, max_steps=365*300)
 
         rewards_df = pd.DataFrame(rewards)
-        rewards_df.to_csv(f"./q_pension_rewards_{runs + 1}.csv")
+        rewards_df.to_csv(f"./q_{env_name}_rewards_{run_no + 1}.csv")
+        logger.info(f'###### FINISHED RUN {run_no + 1} ######')
 
         # logger.info(q_table)
 
@@ -191,6 +222,12 @@ if __name__ == "__main__":
         #     reward = agent.run_episode(exploit=True)[1]
         #     logger.info("reward: %s", reward)
 
+    from multiprocess import Pool
+    range_start = 0
+    num_runs = 5
+    with Pool(processes=6) as pool:
+        results = pool.map(worker, range(range_start, range_start + num_runs))
+        print(f"Results: \n{results}")
 
     # logger.info('###### LEARNING: ######')
     #
