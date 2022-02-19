@@ -27,8 +27,8 @@ class TsetlinRegParams:
     T: int = 10000  # 4000
     s: int = 2  # 2
     number_of_clauses: int = 10000  # 4000
-    states: int = 25  # 100
-    max_target: int = 130  # 4000  # TODO: Make dynamic
+    states: int = 25  # 25  # 100
+    max_target: int = 300  # 4000  # TODO: Make dynamic
     min_target: int = 0  # TODO: Make dynamic
 
 

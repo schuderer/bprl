@@ -71,6 +71,43 @@ def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
     return q_table, rewards
 
 
+def plot(env_name):
+    csv_pattern = f"./q_{env_name}_rewards*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
+
+    # Activate seaborn
+    seaborn.set()
+    plt.figure(f"Results {env_name}")
+    plt.title(env_name, fontsize=14)
+
+    plt.xlabel("Timesteps", fontsize=14)
+    plt.ylabel("Score", fontsize=14)
+
+    df = None
+    for i, csv_file in enumerate(glob.glob(csv_pattern)):
+        logger.info(f"Reading {csv_file}")
+        length = None
+        if df is None:
+            df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
+            length = df.shape[0]
+        else:
+            tmp_df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
+            df[f"reward_{i}"] = tmp_df["reward"][:length]
+    if df is None:
+        logger.info("No data to plot")
+        exit(0)
+
+    logger.info(f"Used {i} csv files")
+    mean_ = df.iloc[:, 1:].mean(axis=1)
+    std_ = df.iloc[:, 1:].std(axis=1)
+    std_error = std_ / np.sqrt(df.shape[0])
+
+    plt.plot(df["episode"], mean_, label=algo, linewidth=3)
+    plt.fill_between(df["episode"], mean_ + std_error, mean_ - std_error, alpha=0.5)
+
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     # penv.logger.setLevel(logging.WARNING)
@@ -81,47 +118,19 @@ if __name__ == "__main__":
     # env_name = "Pendulum-v1"  # "PensionExample-v0"
     env_name = "CartPole-v1"
     # env_name = "MountainCar-v0"
+    algo = "Q-Tsetlin"
+    episodes = 3000
+    num_runs = 5
+    num_bins = 16  # 12 if algo == "Q-Disc" else 16
+    log_bins = False
 
     if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
-        csv_pattern = f"./q_{env_name}_rewards*.csv" if len(sys.argv) == 2 else sys.argv[2]
-
-        # Activate seaborn
-        seaborn.set()
-        plt.figure(f"Results {env_name}")
-        plt.title(env_name, fontsize=14)
-
-        plt.xlabel("Timesteps", fontsize=14)
-        plt.ylabel("Score", fontsize=14)
-
-        df = None
-        for i, csv_file in enumerate(glob.glob(csv_pattern)):
-            length = None
-            if df is None:
-                df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
-                length = df.shape[0]
-            else:
-                tmp_df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
-                df[f"reward_{i}"] = tmp_df["reward"][:length]
-        if df is None:
-            logger.info("No data to plot")
-            exit(0)
-
-        logger.info(f"Used {i} csv files")
-        mean_ = df.iloc[:, 1:].mean(axis=1)
-        std_ = df.iloc[:, 1:].std(axis=1)
-        std_error = std_ / np.sqrt(df.shape[0])
-
-        plt.plot(df["episode"], mean_, label=f"Q-Tsetlin", linewidth=3)
-        plt.fill_between(df["episode"], mean_ + std_error, mean_ - std_error, alpha=0.5)
-
-        plt.legend()
-        plt.show()
-
+        plot(env_name, algo)
         exit(0)
     elif len(sys.argv) >= 2 and sys.argv[1].lower() == "tsetlin":
         from agents.tsetlin_value_function import TsetlinQFunction as QFunction
         # from agents.tsetlin_value_function import TsetlinRegParams
-        algo = "Tsetlin"
+        algo = "Q-Tsetlin"
         print("Running TSETLIN-REGRESSOR BASED Q-LEARNING")
     elif len(sys.argv) >= 2 and sys.argv[1].lower() == "q-disc":
         from agents.value_function import QFunction
@@ -146,8 +155,6 @@ if __name__ == "__main__":
 
     import examples  # registers the env
     env = gym.make(env_name)
-    num_bins = 12 if algo == "Q-Disc" else 16
-    log_bins = True
 
     # env = gym.make('gym_fin:Pension-v0')
     # num_bins = 12
@@ -200,13 +207,13 @@ if __name__ == "__main__":
                               update_policy=q_agent.greedy,
                               exploration_policy=q_agent.epsilon_greedy,
                               gamma=0.99,
-                              min_alpha=0.1,  # TODO: was 0.1, changed for Tsetlin
+                              min_alpha=1.0,  # TODO: was 0.1, changed for Tsetlin
                               min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
-                              alpha_decay=0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
+                              alpha_decay=0.004,  # 0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
                               epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
                               )
 
-        q_table, rewards = learn(agent, episodes=10000, max_steps=365*300)
+        q_table, rewards = learn(agent, episodes=episodes, max_steps=365*300)
 
         rewards_df = pd.DataFrame(rewards)
         rewards_df.to_csv(f"./q_{env_name}_rewards_{run_no + 1}.csv")
@@ -224,10 +231,12 @@ if __name__ == "__main__":
 
     from multiprocess import Pool
     range_start = 0
-    num_runs = 5
     with Pool(processes=6) as pool:
         results = pool.map(worker, range(range_start, range_start + num_runs))
         print(f"Results: \n{results}")
+
+    if len(sys.argv) >= 3 and sys.argv[2].lower() == "plot":
+        plot(env_name, algo)
 
     # logger.info('###### LEARNING: ######')
     #
