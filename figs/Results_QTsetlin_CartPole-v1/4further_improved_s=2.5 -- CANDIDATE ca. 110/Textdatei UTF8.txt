@@ -1,0 +1,5 @@
+real	89m58.737s
+user	525m21.664s
+sys	1m44.318s
+
+    s: int = 2.5  # LASTCHANGE FROM 3  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.

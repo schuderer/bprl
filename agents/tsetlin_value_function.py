@@ -24,12 +24,12 @@ logger = logging.getLogger(__name__)
 # hyper parameters
 @dataclass
 class TsetlinRegParams:
-    T: int = 10000  # 4000
-    s: int = 2  # 2
-    number_of_clauses: int = 10000  # 4000
+    T: int = 10000  # 4000  # TODO try fractions of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
+    s: int = 2.5  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.
+    number_of_clauses: int = 10000  # 4000  # TODO: try reducing to multiples of T
     states: int = 25  # 25  # 100
-    max_target: int = 300  # 4000  # TODO: Make dynamic
-    min_target: int = 0  # TODO: Make dynamic
+    max_target: int = 0  # 4000  # TODO: Make dynamic
+    min_target: int = -200  # TODO: Make dynamic
 
 
 class TsetlinQFunction:
@@ -146,6 +146,37 @@ class TsetlinQFunction:
             action_value = self.tsetlin_machine.predict(features)
             action_values.append(action_value)
         return action_values
+
+    @property
+    def number_of_clauses(self):
+        """Twice the number of specified clauses
+        (the first `number_of_clauses` number of indices refer to the positive ones
+        while the second half of the indices refers to the negated ones
+        """
+        return self.tsetlin_machine.number_of_clauses * 2
+
+    def get_clause(self, index: int):
+        num_clauses = self.tsetlin_machine.number_of_clauses
+        negation_idx = index // num_clauses
+        clause_idx = index % num_clauses
+        # print(f"negation_idx: {negation_idx}")
+        # print(f"clause_idx: {clause_idx}")
+        return self.tsetlin_machine.ta_state[clause_idx, :, negation_idx]
+
+    def set_clause(self, index: int, clause):
+        num_clauses = self.tsetlin_machine.number_of_clauses
+        negation_idx = index // num_clauses
+        clause_idx = index % num_clauses
+        self.tsetlin_machine.ta_state[clause_idx, :, negation_idx] = clause
+
+    def normalized_clause_mean(self, clause):
+        return (np.mean(clause) - self.tsetlin_machine.number_of_states) / (2 * self.tsetlin_machine.number_of_states)
+
+    def normalized_clause_means(self):
+        clause_means = np.mean(self.tsetlin_machine.ta_state, axis=1)
+        clauses_normed = (clause_means - self.tsetlin_machine.number_of_states) / (2 * self.tsetlin_machine.number_of_states)
+        clauses_normed_1d = clauses_normed.swapaxes(0, 1).flatten()  # first half are the non-negated clauses, second half the negated ones (to match the index convention of get_clause/set_clause)
+        return clauses_normed_1d
 
 
 def test():

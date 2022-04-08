@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 # import gym_fin.envs.pension_env as penv
 # import gym_fin
 from agents import q_agent
+from agents.utils import softmax
 import logging
 
 logging.basicConfig(stream=sys.stdout)
@@ -25,12 +26,87 @@ is_tsetlin = False
 #                     value_function.QFunction.update_value,
 #                     q_agent.greedy,
 #                     q_agent.epsilon_greedy])
-def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
+# def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
+#     overall = 0
+#     last_100 = np.zeros((100,))
+#     num_actions = agent.q_function.action_disc.space.n
+#     rewards = {"episode": [], "reward": []}
+#     for episode in range(episodes):
+#         if hasattr(agent.q_function, "q_table"):
+#             logger.debug('size of q table: %s',
+#                          len(agent.q_function.q_table.keys()) * num_actions)
+#
+#         q_table, cumul_reward, num_steps, info = \
+#             agent.run_episode(max_steps=max_steps, exploit=False)
+#         if q_table is not None:
+#             q_table_size = len(q_table.keys()) * num_actions
+#         else:
+#             q_table_size = None
+#
+#         overall += cumul_reward
+#         last_100[episode % 100] = cumul_reward
+#         logger.warning('Episode %s finished after %s timesteps with '
+#                        'cumulative reward %s (last 100 mean = %s)',
+#                        episode, num_steps, cumul_reward, last_100.mean())
+#         if type(agent.env).__name__ == 'PensionEnv':
+#             logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
+#                            '#humans %s, reputation %s',
+#                            agent.env.year,
+#                            q_table_size,
+#                            agent.epsilon, agent.alpha,
+#                            len([h for h in agent.env.humans if h.active]),
+#                            info['company'].reputation)
+#         else:
+#             logger.warning(
+#                 'q table size %s, epsilon %s, alpha %s',
+#                 q_table_size, agent.epsilon, agent.alpha)
+#         if (episode + 1) % eval_interval == 0:
+#             eval_reward = 0
+#             for _ in range(num_eval_runs):
+#                 eval_reward += agent.run_episode(exploit=True)[1]
+#             rewards["episode"].append(episode + 1)
+#             rewards["reward"].append(eval_reward / num_eval_runs)
+#
+#     logger.warning('Overall cumulative reward: %s', overall / episodes)
+#     logger.warning('Average reward last 100 episodes: %s', last_100.mean())
+#     return q_table, rewards
+def learn(agents,
+          episodes,
+          max_steps,
+          eval_interval=20,
+          num_eval_runs=5,
+          communication_interval=1000000,  # no comm; LASTCHANGE: was 2
+          communication_message_len=40,
+          communication_agent_choice="best",  # LASTCHANGE: was random
+          communication_clause_choice="certainty",
+          ):
+    """
+    agents: iterable of agents
+    episodes: number of episodes to learn for
+    max_steps: maximum number of steps in each episode
+    eval_interval: evaluate after this number of episodes
+    num_eval_runs: when evaluating, run this many episodes
+    communication_interval: let agents communicate after this many episodes
+    communication_message_len: number of clauses to share with each instance of communication
+    communication_agent_choice: which agent(s) communicate.
+      "random" = one random agent per number of episodes (according to communication interval)
+      "best" = choose the agent stochastically based on to their mean last 100 reward
+    communication_clause_choice: how clauses to put into the message are selected
+      (`communication_message_len` number of clauses).
+      "random" = select clauses randomly
+      "certainty" = sample clauses stochastically based on their agent's average state
+        (clauses with "extreme" states at either end of the finite state automata have a higher chance
+        of being selected than "indecisive" states near the middle of the automata)
+    """
+    num_agents = len(agents)
     overall = 0
-    last_100 = np.zeros((100,))
-    num_actions = agent.q_function.action_disc.space.n
+    last_100 = np.zeros((num_agents, 100))
+    num_actions = agents[0].q_function.action_disc.space.n
     rewards = {"episode": [], "reward": []}
+    q_table = None
     for episode in range(episodes):
+        agent_idx = episode % num_agents
+        agent = agents[agent_idx]
         if hasattr(agent.q_function, "q_table"):
             logger.debug('size of q table: %s',
                          len(agent.q_function.q_table.keys()) * num_actions)
@@ -43,7 +119,7 @@ def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
             q_table_size = None
 
         overall += cumul_reward
-        last_100[episode % 100] = cumul_reward
+        last_100[agent_idx, (episode // num_agents) % 100] = cumul_reward
         logger.warning('Episode %s finished after %s timesteps with '
                        'cumulative reward %s (last 100 mean = %s)',
                        episode, num_steps, cumul_reward, last_100.mean())
@@ -60,18 +136,70 @@ def learn(agent, episodes, max_steps, eval_interval=20, num_eval_runs=5):
                 'q table size %s, epsilon %s, alpha %s',
                 q_table_size, agent.epsilon, agent.alpha)
         if (episode + 1) % eval_interval == 0:
+            # print(f"##################### EVAL #######################")
             eval_reward = 0
             for _ in range(num_eval_runs):
-                eval_reward += agent.run_episode(exploit=True)[1]
+                # Note: only evaluating one agent for now (assuming single-agent env)
+                eval_agent = random.choice(agents)
+                eval_reward += eval_agent.run_episode(exploit=True)[1]
             rewards["episode"].append(episode + 1)
             rewards["reward"].append(eval_reward / num_eval_runs)
+        # At the end of each nth episode for each agent, randomly implant one clause from a random other agent
+        if num_agents > 1:
+            if (episode + 1) % (communication_interval * num_agents) == 0:
+                for me in agents:
+                    num_clauses = me.q_function.number_of_clauses
+                    if communication_agent_choice == "random":
+                        # get clauses from any random other agent:
+                        others = agents.copy()
+                        others.remove(me)
+                        another = random.sample(others, 1)[0]
+                    elif communication_agent_choice == "best":
+                        # get clauses from a sample of the best other agents:
+                        agent_scores = last_100.mean(axis=1)
+                        # print(agent_scores)
+                        # print(softmax(agent_scores))
+                        another = np.random.choice(agents, p=softmax(agent_scores))
+                    else:
+                        raise ValueError(f"communication_agent_choice must be `random` or `best`, but was {communication_agent_choice}")
+                    # print(f"agent with index {agents.index(another)} will share its wisdom now")
+                    if another is me:
+                        continue
+                    if communication_clause_choice == "random":
+                        for _ in range(communication_message_len):
+                            random_clause_idx = random.randint(0, num_clauses - 1)
+                            others_clause = another.q_function.get_clause(random_clause_idx)
+                            my_old_clause = me.q_function.get_clause(random_clause_idx)
+                            # print(f"Replacing my clause at index {random_clause_idx} {list(my_old_clause)} with other's clause {list(others_clause)}")
+                            me.q_function.set_clause(random_clause_idx, others_clause)
+                    elif communication_clause_choice == "certainty":
+                        clause_indices = list(range(num_clauses))
+                        all_clauses = [another.q_function.get_clause(i) for i in clause_indices]
+                        clause_means = another.q_function.normalized_clause_means()
+                        # clause_means2 = [another.q_function.normalized_clause_mean(c) for c in all_clauses]
+                        # if np.any(clause_means != clause_means2):
+                        #     print(clause_means[0:20])
+                        #     print(clause_means2[0:20])
+                        #     raise ValueError("baoeu")
+                        # print(clause_means)
+                        clause_probs = softmax(1.0 - np.abs(clause_means))  # higher probs for means closer to 0.0, lower probs for means close to -1.0 or +1.0
+                        # print(clause_probs)
+                        chosen_clause_indices = np.random.choice(clause_indices, size=communication_message_len, p=clause_probs)
+                        for i in chosen_clause_indices:
+                            others_clause = another.q_function.get_clause(i)
+                            my_old_clause = me.q_function.get_clause(i)
+                            # print(f"Replacing my clause at index {i} {list(my_old_clause)} with other's clause {list(others_clause)}")
+                            me.q_function.set_clause(i, others_clause)
+                    else:
+                        raise ValueError(f"communication_clause_choice must be `random` or `certainty`, but was {communication_clause_choice}")
 
-    logger.warning('Overall cumulative reward: %s', overall / episodes)
+
+    logger.warning('Overall cumulative reward: %s', overall / episodes / num_agents)
     logger.warning('Average reward last 100 episodes: %s', last_100.mean())
     return q_table, rewards
 
 
-def plot(env_name):
+def plot(env_name, algo):
     csv_pattern = f"./q_{env_name}_rewards*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
 
     # Activate seaborn
@@ -117,15 +245,18 @@ if __name__ == "__main__":
 
     # env_name = "Pendulum-v1"  # "PensionExample-v0"
     env_name = "CartPole-v1"
-    # env_name = "MountainCar-v0"
-    algo = "Q-Tsetlin"
-    episodes = 3000
-    num_runs = 5
+    # env_name = "MountainCar-v0"  # Did not converge with 10.000 clauses
+    # from pettingzoo.butterfly import pistonball_v6
+    # env_name = pistonball_v6.env
+    algo = "Q-Tsetlin best agent com + cert sampling"
+    episodes = 5000  # LASTCHANGE: was 4000
+    num_agents = 4
+    num_runs = 10
     num_bins = 16  # 12 if algo == "Q-Disc" else 16
     log_bins = False
 
     if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
-        plot(env_name, algo)
+        plot(str(env_name), algo)
         exit(0)
     elif len(sys.argv) >= 2 and sys.argv[1].lower() == "tsetlin":
         from agents.tsetlin_value_function import TsetlinQFunction as QFunction
@@ -154,7 +285,7 @@ if __name__ == "__main__":
     # }
 
     import examples  # registers the env
-    env = gym.make(env_name)
+    # env = gym.make(env_name)
 
     # env = gym.make('gym_fin:Pension-v0')
     # num_bins = 12
@@ -198,25 +329,33 @@ if __name__ == "__main__":
         # random.seed(seed)
         # np.random.seed(seed)
 
-        q_func = QFunction(env,
-                           discretize_bins=num_bins,
-                           discretize_log=log_bins)
+        agents = []
+        for a in range(num_agents):
+            if isinstance(env_name, str):
+                env = gym.make(env_name)
+            else:
+                env = env_name()
 
-        agent = q_agent.Agent(env,
-                              q_function=q_func,
-                              update_policy=q_agent.greedy,
-                              exploration_policy=q_agent.epsilon_greedy,
-                              gamma=0.99,
-                              min_alpha=1.0,  # TODO: was 0.1, changed for Tsetlin
-                              min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
-                              alpha_decay=0.004,  # 0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
-                              epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
-                              )
+            q_func = QFunction(env,
+                               discretize_bins=num_bins,
+                               discretize_log=log_bins)
 
-        q_table, rewards = learn(agent, episodes=episodes, max_steps=365*300)
+            agent = q_agent.Agent(env,
+                                  q_function=q_func,
+                                  update_policy=q_agent.greedy,
+                                  exploration_policy=q_agent.epsilon_greedy,
+                                  gamma=0.99,
+                                  min_alpha=1.0,  # TODO: was 0.1, changed for Tsetlin
+                                  min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
+                                  alpha_decay=0.004,  # 0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
+                                  epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+                                  )
+            agents.append(agent)
+
+        q_table, rewards = learn(agents, episodes=episodes, max_steps=365*300)
 
         rewards_df = pd.DataFrame(rewards)
-        rewards_df.to_csv(f"./q_{env_name}_rewards_{run_no + 1}.csv")
+        rewards_df.to_csv(f"./q_{str(env_name)}_rewards_{run_no + 1}.csv")
         logger.info(f'###### FINISHED RUN {run_no + 1} ######')
 
         # logger.info(q_table)
@@ -231,12 +370,12 @@ if __name__ == "__main__":
 
     from multiprocess import Pool
     range_start = 0
-    with Pool(processes=6) as pool:
+    with Pool(processes=7) as pool:
         results = pool.map(worker, range(range_start, range_start + num_runs))
         print(f"Results: \n{results}")
 
     if len(sys.argv) >= 3 and sys.argv[2].lower() == "plot":
-        plot(env_name, algo)
+        plot(str(env_name), algo)
 
     # logger.info('###### LEARNING: ######')
     #

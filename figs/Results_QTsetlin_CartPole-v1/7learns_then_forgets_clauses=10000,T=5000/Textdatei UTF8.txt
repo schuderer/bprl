@@ -1,0 +1,8 @@
+real	29m13.259s
+user	136m19.129s
+sys	0m35.201s
+
+    T: int = 5000  # LASTCHANGE from 10000  # 4000  # TODO try multiples of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
+    number_of_clauses: int = 10000  # 4000  # TODO: try reducing to fractions of T
+
+

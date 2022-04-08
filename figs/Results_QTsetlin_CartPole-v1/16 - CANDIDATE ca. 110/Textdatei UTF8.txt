@@ -1,20 +1,22 @@
-real	62m59.604s
-user	155m50.870s
-sys	0m28.796s
+real	240m39.260s
+user	1295m21.441s
+sys	2m41.091s
 
-    episodes = 3000
-    num_runs = 5
+
+    episodes = 4000
+    num_runs = 10
     num_bins = 16  # 12 if algo == "Q-Disc" else 16
     log_bins = False
 
 
 class TsetlinRegParams:
-    T: int = 10000  # 4000
-    s: int = 2  # 2
-    number_of_clauses: int = 10000  # 4000
+    T: int = 20000  # 4000  # TODO try fractions of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
+    s: int = 2  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.
+    number_of_clauses: int = 20000  # 4000  # TODO: try reducing to multiples of T
     states: int = 25  # 25  # 100
     max_target: int = 300  # 4000  # TODO: Make dynamic
     min_target: int = 0  # TODO: Make dynamic
+
 
         agent = q_agent.Agent(env,
                               q_function=q_func,

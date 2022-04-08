@@ -1,0 +1,6 @@
+real	6m53.831s
+user	29m13.030s
+sys	0m9.537s
+
+
+    s: int = 5  # LASTCHANGE # 2

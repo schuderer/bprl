@@ -1,0 +1,12 @@
+real	135m40.745s
+user	666m31.673s
+sys	2m28.344s
+
+
+
+          communication_interval=10,  # LASTCHANGE: was 2
+          communication_message_len=300,  # LASTCHANGE: was 40
+
+
+    episodes = 5000  # LASTCHANGE: was 4000
+

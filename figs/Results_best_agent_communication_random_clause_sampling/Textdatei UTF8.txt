@@ -1,0 +1,11 @@
+real	103m38.242s
+user	524m17.468s
+sys	1m9.896s
+
+
+real	99m49.717s
+user	476m44.354s
+sys	1m21.380s
+
+
+selecting "stochastic best agent" from a softmax distribution of mean rewards of last 100 episodes over all agents 

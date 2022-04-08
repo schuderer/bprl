@@ -1,0 +1,5 @@
+real	116m47.399s
+user	306m7.093s
+sys	0m56.843s
+
+    s: int = 3  # LASTCHANGE FROM 2  # 2

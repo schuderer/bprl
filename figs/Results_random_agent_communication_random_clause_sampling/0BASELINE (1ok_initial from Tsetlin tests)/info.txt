@@ -1,0 +1,40 @@
+run1
+real	62m59.604s
+user	155m50.870s
+sys	0m28.796s
+
+run2
+real	55m36.411s
+user	197m15.825s
+sys	0m35.810s
+
+run3
+real	114m45.481s
+user	305m31.650s
+sys	0m59.137s
+
+Params:
+    episodes = 3000
+    num_runs = 5
+    num_bins = 16  # 12 if algo == "Q-Disc" else 16
+    log_bins = False
+
+
+class TsetlinRegParams:
+    T: int = 10000  # 4000
+    s: int = 2  # 2
+    number_of_clauses: int = 10000  # 4000
+    states: int = 25  # 25  # 100
+    max_target: int = 300  # 4000  # TODO: Make dynamic
+    min_target: int = 0  # TODO: Make dynamic
+
+        agent = q_agent.Agent(env,
+                              q_function=q_func,
+                              update_policy=q_agent.greedy,
+                              exploration_policy=q_agent.epsilon_greedy,
+                              gamma=0.99,
+                              min_alpha=1.0,  # TODO: was 0.1, changed for Tsetlin
+                              min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
+                              alpha_decay=0.004,  # 0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
+                              epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
+                              )
