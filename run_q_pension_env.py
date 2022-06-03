@@ -1,14 +1,19 @@
 # Test code (simple q learner (discretized state & action space)):
 
+import datetime
 import glob
+import math
 import random
 import sys
+from dataclasses import dataclass
+from typing import Any, Callable, Union
 
 import gym
 import numpy as np
 import pandas as pd
 import seaborn
 from matplotlib import pyplot as plt
+import dill as pickle
 
 # import gym_fin.envs.pension_env as penv
 # import gym_fin
@@ -70,19 +75,21 @@ is_tsetlin = False
 #     logger.warning('Overall cumulative reward: %s', overall / episodes)
 #     logger.warning('Average reward last 100 episodes: %s', last_100.mean())
 #     return q_table, rewards
-def learn(agents,
+def learn(run_id,
+          agents,
           episodes,
           max_steps,
-          eval_interval=20,
+          eval_interval=10,  # LASTCHANGE: was 20
           num_eval_runs=5,
-          communication_interval=1000000,  # no comm; LASTCHANGE: was 2
+          communication_interval=1000000,  # no comm; was 2
           communication_message_len=40,
-          communication_agent_choice="best",  # LASTCHANGE: was random
+          communication_agent_choice="best",  # was random
           communication_clause_choice="certainty",
           ):
     """
+    run_id: some name for identifying this run (models are saved on every evaluation)
     agents: iterable of agents
-    episodes: number of episodes to learn for
+    episodes: number of episodes to learn for (ATTENTION: For native MARL (ma_gym), this assumes that each agent gets a turn in each episode (not round-robin over the number of episodes))
     max_steps: maximum number of steps in each episode
     eval_interval: evaluate after this number of episodes
     num_eval_runs: when evaluating, run this many episodes
@@ -102,52 +109,114 @@ def learn(agents,
     overall = 0
     last_100 = np.zeros((num_agents, 100))
     num_actions = agents[0].q_function.action_disc.space.n
+    # For marl_envs, all agents are referencing the same env
+    marl_env = agents[0].env.marl_env if hasattr(agents[0].env, "marl_env") else None
     rewards = {"episode": [], "reward": []}
     q_table = None
     for episode in range(episodes):
-        agent_idx = episode % num_agents
-        agent = agents[agent_idx]
-        if hasattr(agent.q_function, "q_table"):
-            logger.debug('size of q table: %s',
-                         len(agent.q_function.q_table.keys()) * num_actions)
-
-        q_table, cumul_reward, num_steps, info = \
-            agent.run_episode(max_steps=max_steps, exploit=False)
-        if q_table is not None:
-            q_table_size = len(q_table.keys()) * num_actions
+        cumul_rewards_n = [0 for _ in agents]
+        num_steps_n = [0 for _ in agents]
+        info = None
+        # Run the episode (for all agents):
+        if marl_env is not None:
+            # Env with properties per agent (vector over agents, e.g. ma_gym)
+            run_marl_episode(
+                agents,
+                marl_env,
+                cumul_rewards_n,
+                num_steps_n,
+                max_steps=max_steps,
+                exploit=False,
+            )
         else:
-            q_table_size = None
+            # Single-agent or non-native MARL environment (unlike e.g. ma_gym)
+            for i, agent in enumerate(agents):
+                if hasattr(agent.q_function, "q_table"):
+                    logger.debug('size of q table: %s',
+                                 len(agent.q_function.q_table.keys()) * num_actions)
 
-        overall += cumul_reward
-        last_100[agent_idx, (episode // num_agents) % 100] = cumul_reward
+                q_table, cumul_rewards_n[i], num_steps_n[i], info = \
+                    agent.run_episode(max_steps=max_steps, exploit=False)
+                # if q_table is not None:
+                #     q_table_size = len(q_table.keys()) * num_actions
+                # else:
+                #     q_table_size = None
+
+                # overall += cumul_reward  # TODO what to do with this?
+
+        last_100[:, episode % 100] = cumul_rewards_n
+        avg_num_steps = sum(num_steps_n)/len(num_steps_n)
+        avg_cumul_reward = sum(cumul_rewards_n)/len(cumul_rewards_n)
+        overall += avg_cumul_reward
+        if episode < 100:
+            last_100_mean = last_100[:, :episode].mean()
+        else:
+            last_100_mean = last_100.mean()
         logger.warning('Episode %s finished after %s timesteps with '
                        'cumulative reward %s (last 100 mean = %s)',
-                       episode, num_steps, cumul_reward, last_100.mean())
-        if type(agent.env).__name__ == 'PensionEnv':
-            logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
-                           '#humans %s, reputation %s',
-                           agent.env.year,
-                           q_table_size,
-                           agent.epsilon, agent.alpha,
-                           len([h for h in agent.env.humans if h.active]),
-                           info['company'].reputation)
-        else:
-            logger.warning(
-                'q table size %s, epsilon %s, alpha %s',
-                q_table_size, agent.epsilon, agent.alpha)
-        if (episode + 1) % eval_interval == 0:
+                           episode, avg_num_steps, avg_cumul_reward, last_100_mean)
+        # if type(agent.env).__name__ == 'PensionEnv':
+        #     logger.warning('year %s, q table size %s, epsilon %s, alpha %s, '
+        #                    '#humans %s, reputation %s',
+        #                    agent.env.year,
+        #                    q_table_size,
+        #                    agent.epsilon, agent.alpha,
+        #                    len([h for h in agent.env.humans if h.active]),
+        #                    info['company'].reputation)
+        # else:
+        #     logger.warning(
+        #         'q table size %s, epsilon %s, alpha %s',
+        #         q_table_size, agent.epsilon, agent.alpha)
+
+        if (episode + 1) % eval_interval == 0 or episode + 1 == episodes:
             # print(f"##################### EVAL #######################")
-            eval_reward = 0
-            for _ in range(num_eval_runs):
-                # Note: only evaluating one agent for now (assuming single-agent env)
-                eval_agent = random.choice(agents)
-                eval_reward += eval_agent.run_episode(exploit=True)[1]
+            eval_reward_n = np.zeros((num_agents, num_eval_runs))
+            for run in range(num_eval_runs):
+                for a_idx, eval_agent in enumerate(agents):
+                    if marl_env is not None:
+                        run_marl_episode(
+                            agents,
+                            marl_env,
+                            eval_reward_n[:, run],
+                            [0 for _ in agents],
+                            exploit=True,
+                        )
+                    else:
+                        eval_reward_n[a_idx, run] = eval_agent.run_episode(exploit=True)[1]
+
+                    if run == 0:
+                        print("Saving model snapshot.")
+                        fname = f"{run_id}_agent_{a_idx}"
+                        if hasattr(eval_agent.q_function, "q_table"):
+                            obj = eval_agent.q_function.q_table
+                            fname += "_qTable_dict"
+                        elif hasattr(eval_agent.q_function, "get_raw_clauses"):
+                            obj = np.array(eval_agent.q_function.get_raw_clauses())
+                            fname += "_tsetlinClauses_ndarray"
+                        else:
+                            logger.warning("Unknown Q Function type, pickling complete Q Function.")
+                            obj = eval_agent.q_function
+                            fname += "_qFunction_obj"
+                        # fname += "_" + datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+                        # fname += f"_lastReward_{eval_reward_n[a_idx, run]}"
+                        with open(f"{fname}.pickle", mode="wb") as f:
+                            pickle.dump(obj, f)
+
+            print(eval_reward_n)
             rewards["episode"].append(episode + 1)
-            rewards["reward"].append(eval_reward / num_eval_runs)
+            rewards["reward"].append(eval_reward_n.mean())
+            rewards_df = pd.DataFrame(rewards)
+            rewards_df.to_csv(f"./{str(run_id)}.csv")
+
         # At the end of each nth episode for each agent, randomly implant one clause from a random other agent
         if num_agents > 1:
             if (episode + 1) % (communication_interval * num_agents) == 0:
                 for me in agents:
+                    if not hasattr(me.q_function, "get_raw_clauses"):
+                        logger.error(
+                            "Communication has been specified, but the Q Function does not appear to be Tsetlin-based. "
+                            "Skipping communication!")
+                        break
                     num_clauses = me.q_function.number_of_clauses
                     if communication_agent_choice == "random":
                         # get clauses from any random other agent:
@@ -193,10 +262,40 @@ def learn(agents,
                     else:
                         raise ValueError(f"communication_clause_choice must be `random` or `certainty`, but was {communication_clause_choice}")
 
-
-    logger.warning('Overall cumulative reward: %s', overall / episodes / num_agents)
+    logger.warning('Overall cumulative reward: %s', overall / episodes)
     logger.warning('Average reward last 100 episodes: %s', last_100.mean())
     return q_table, rewards
+
+
+def run_marl_episode(agents, marl_env, cumul_rewards_n, num_steps_n, max_steps=math.inf, exploit=False):
+    step = 0
+    done_n = [False for _ in agents]
+    for agent in agents:
+        agent.prepare_episode(exploit=exploit)
+    prev_obs_n = marl_env.reset()
+    # print(prev_obs_n[0])
+    while not all(done_n):
+        action_n, action_val_n = [], []
+        for i, agent in enumerate(agents):
+            action, action_val = agent.choose_action(prev_obs_n[i])
+            action_n.append(action)
+            action_val_n.append(action_val)
+        new_obs_n, reward_n, done_n, info = marl_env.step(action_n)
+        if not exploit:
+            for i, agent in enumerate(agents):
+                agent.update(prev_obs_n[i], action_n[i], action_val_n[i], new_obs_n[i], reward_n[i])
+            # for agent, prev_obs, action, action_val, new_obs, reward in zip(agents, prev_obs_n, action_n, action_val_n, new_obs_n, reward_n):
+            #     agent.update(prev_obs, action, action_val, new_obs, reward)
+
+        prev_obs_n = new_obs_n
+        step += 1
+        if step >= max_steps:
+            done_n = [True for _ in agents]
+
+        for i, _ in enumerate(agents):
+            cumul_rewards_n[i] += reward_n[i]
+            if done_n[i]:
+                num_steps_n[i] = step
 
 
 def plot(env_name, algo):
@@ -236,6 +335,13 @@ def plot(env_name, algo):
     plt.show()
 
 
+@dataclass
+class EnvProxy:
+    observation_space: Any = None
+    action_space: Any = None
+    marl_env: Any = None
+
+
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     # penv.logger.setLevel(logging.WARNING)
@@ -244,15 +350,18 @@ if __name__ == "__main__":
     logging.getLogger("examples.pension").setLevel(logging.WARNING)
 
     # env_name = "Pendulum-v1"  # "PensionExample-v0"
-    env_name = "CartPole-v1"
+    # env_name = "CartPole-v1"
     # env_name = "MountainCar-v0"  # Did not converge with 10.000 clauses
     # from pettingzoo.butterfly import pistonball_v6
     # env_name = pistonball_v6.env
-    algo = "Q-Tsetlin best agent com + cert sampling"
-    episodes = 5000  # LASTCHANGE: was 4000
-    num_agents = 4
-    num_runs = 10
-    num_bins = 16  # 12 if algo == "Q-Disc" else 16
+    import ma_gym
+    env_name: Union[str, Callable] = "Combat-v0"
+    algo = "Q-Tsetlin no comm"
+    # algo = "Q-Tsetlin best agent com + cert sampling"
+    episodes = 5000  # LASTCHANGE: was 5000
+    num_agents = -1  # was 4; use -1 for native multi-agent environment (which determines its own num of agents)
+    num_runs = 10  # LASTCHANGE: was 10
+    num_bins = 4  # was 4 for Combat-v0: earlier: was 16  # 12 if algo == "Q-Disc" else 16
     log_bins = False
 
     if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
@@ -317,6 +426,25 @@ if __name__ == "__main__":
     # num_bins = 1
     # log_bins = False
 
+    def make_q_agent(env):
+        q_func = QFunction(
+            env,
+            discretize_bins=num_bins,
+            discretize_log=log_bins
+        )
+        agent = q_agent.Agent(
+            env,
+            q_function=q_func,
+            update_policy=q_agent.greedy,
+            exploration_policy=q_agent.epsilon_greedy,
+            gamma=0.99,
+            min_alpha=1.0,  # TODO: was 0.1, changed to 1.0 for Tsetlin
+            min_epsilon=0.01,  # TODO: was 0.1, changed to 0.05 for Tsetlin
+            alpha_decay=0.004,  # default 1 = fixed alpha (instant decay to min_alpha)
+            epsilon_decay=0.0008  # was: 0.006 # default: 1 = fixed epsilon (instant decay to min_epsilon)
+        )
+        return agent
+
     def worker(run_no):
         logger.info(f'###### LEARNING RUN {run_no + 1} ######')
 
@@ -330,32 +458,45 @@ if __name__ == "__main__":
         # np.random.seed(seed)
 
         agents = []
-        for a in range(num_agents):
-            if isinstance(env_name, str):
-                env = gym.make(env_name)
-            else:
-                env = env_name()
+        if num_agents == -1:
+            # Native multi-agent reinforcement learning environment (we don't get to determine the num of agents)
+            try:
+                logger.info("MARL env")
+                if isinstance(env_name, str):
+                    marl_env = gym.make(env_name)
+                else:
+                    marl_env = env_name()
+                if hasattr(marl_env, "n_agents"):
+                    # MARL type: ma_gym
+                    marl_num_agents = marl_env.n_agents
+                for a in range(marl_num_agents):
+                    env = EnvProxy(
+                        marl_env.observation_space[a],
+                        marl_env.action_space[a],
+                        marl_env
+                    )
+                    agent = make_q_agent(env)
+                    agents.append(agent)
+            except:
+                logger.error("Num-agents is set to -1 but the env does not look like a known MARL env.")
+                raise
+        else:
+            # not a MARL env
+            logger.info("Not a MARL env (num_agents != -1)")
+            for a in range(num_agents):
+                if isinstance(env_name, str):
+                    env = gym.make(env_name)
+                else:
+                    env = env_name()
 
-            q_func = QFunction(env,
-                               discretize_bins=num_bins,
-                               discretize_log=log_bins)
+                if hasattr(env, "n_agents"):
+                    raise ValueError("Did not expect a MARL env. Please set num_agents to -1.")
 
-            agent = q_agent.Agent(env,
-                                  q_function=q_func,
-                                  update_policy=q_agent.greedy,
-                                  exploration_policy=q_agent.epsilon_greedy,
-                                  gamma=0.99,
-                                  min_alpha=1.0,  # TODO: was 0.1, changed for Tsetlin
-                                  min_epsilon=0.05,  # TODO: was 0.1, changed for Tsetlin
-                                  alpha_decay=0.004,  # 0.004,   # default 1 = fixed alpha (instant decay to min_alpha)
-                                  epsilon_decay=0.006  # default: 1 = fixed epsilon (instant decay to min_epsilon)
-                                  )
-            agents.append(agent)
+                agent = make_q_agent(env)
+                agents.append(agent)
 
-        q_table, rewards = learn(agents, episodes=episodes, max_steps=365*300)
+        q_table, rewards = learn(f"{str(env_name)}_run_{run_no}", agents, episodes=episodes, max_steps=365*300)
 
-        rewards_df = pd.DataFrame(rewards)
-        rewards_df.to_csv(f"./q_{str(env_name)}_rewards_{run_no + 1}.csv")
         logger.info(f'###### FINISHED RUN {run_no + 1} ######')
 
         # logger.info(q_table)
@@ -370,7 +511,7 @@ if __name__ == "__main__":
 
     from multiprocess import Pool
     range_start = 0
-    with Pool(processes=7) as pool:
+    with Pool(processes=6) as pool:  # LASTCHANGE: was 7
         results = pool.map(worker, range(range_start, range_start + num_runs))
         print(f"Results: \n{results}")
 

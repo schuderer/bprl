@@ -45,7 +45,7 @@ class QFunction:
         self, observation, policy, policy_params, save=None, load=None
     ):
         """Get action/value tuple of selected action"""
-        if load is None:
+        if load is None or load not in self.remembered_state_keys:
             discrete_state = self.state_disc.discretize(observation)
             state_key = self._stateKeyFor(discrete_state)
             if save is not None:
@@ -60,7 +60,7 @@ class QFunction:
 
     def update_value(self, observation, action, value, save=None, load=None):
         """Update value of observation-action"""
-        if load is None:
+        if load is None or load not in self.remembered_state_keys:
             discrete_state = self.state_disc.discretize(observation)
             state_key = self._stateKeyFor(discrete_state)
             if save is not None:

@@ -51,7 +51,8 @@ class Discretizer:
             self.space = env_space
         else:
             raise TypeError(
-                "Can only work with Discrete or Box type state spaces."
+                "Can only work with Discrete or Box type state spaces. Got type %s: \n %s",
+                type(env_space), env_space
             )
 
     def discretize(self, vals):

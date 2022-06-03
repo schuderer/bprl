@@ -28,8 +28,8 @@ class TsetlinRegParams:
     s: int = 2.5  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.
     number_of_clauses: int = 10000  # 4000  # TODO: try reducing to multiples of T
     states: int = 25  # 25  # 100
-    max_target: int = 0  # 4000  # TODO: Make dynamic
-    min_target: int = -200  # TODO: Make dynamic
+    max_target: int = 0  # 4000 (0 for Combat-V0, 300 for cartpole) # TODO: Make dynamic
+    min_target: int = -15  # (-15 for Combat-V0, 0 for cartpole) TODO: Make dynamic
 
 
 class TsetlinQFunction:
@@ -154,6 +154,13 @@ class TsetlinQFunction:
         while the second half of the indices refers to the negated ones
         """
         return self.tsetlin_machine.number_of_clauses * 2
+
+    def get_raw_clauses(self):
+        return self.tsetlin_machine.ta_state
+
+    def get_clauses(self):
+        for i in range(self.number_of_clauses):
+            yield self.get_clause(i)
 
     def get_clause(self, index: int):
         num_clauses = self.tsetlin_machine.number_of_clauses

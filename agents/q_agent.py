@@ -90,6 +90,11 @@ class Agent:
         self.alpha = 1
         self.epsilon = 1
 
+        # Keep track of state during episode
+        self.policy_params = None
+        self.prev_cache_key = None
+        self.used_alpha = None
+
     # @do_profile(follow=[env.step, penv.Client.live_one_year])
     # @do_profile(follow=[maxQ, getActions, getMaxRandomTieBreak])
     def run_episode(self, max_steps=math.inf, exploit=False):
@@ -103,64 +108,39 @@ class Agent:
             q_table, cumulative reward of episode, number of steps, last env info
         """
 
-        # apply decay once before episode to make constant alpha/epsilon possible
-        # to use fixed alpha/epsilon, use (min_)alpha/epsilon together with *_decay=1
-        self.alpha = max(self.alpha * (1 - self.alpha_decay), self.min_alpha)
-        self.epsilon = max(
-            self.epsilon * (1 - self.epsilon_decay), self.min_epsilon
-        )
-        alpha = 0 if exploit else self.alpha
-        epsilon = 0 if exploit else self.epsilon
+        self.prepare_episode(exploit)
+
+        prev_observation = self.env.reset()
+
+        # Adjusted value_function.py so this should not be needed any more (WIP)
+        # # just for caching:
+        # # True = just some hashable value we can swap between two states
+        # self.prev_cache_key = True
+        # self.q_function.select_action(
+        #     prev_observation,
+        #     self.update_policy,
+        #     self.policy_params,
+        #     save=self.prev_cache_key,
+        # )
 
         cumul_reward = 0
-        prev_observation = self.env.reset()
-        policy_params = {"epsilon": epsilon}
-
-        # just for caching:
-        # True = just some hashable value we can swap between two states
-        prev_cache_key = True
-        self.q_function.select_action(
-            prev_observation,
-            self.update_policy,
-            policy_params,
-            save=prev_cache_key,
-        )
-
         t = 0
+        info = None
         while t < max_steps:
-            # self.env.render()
-            logger.debug("Observation: %s", prev_observation)
-
-            # if exploit and hasattr(self.env, "render"):
-            #     self.env.render()
-
-            action, action_val = self.q_function.select_action(
-                prev_observation,
-                self.exploration_policy,
-                policy_params,
-                load=prev_cache_key,
-            )
-            logger.debug(
-                "chosen action %s (%s), value %s (%s)",
-                action,
-                type(action),
-                action_val,
-                type(action_val),
-            )
+            # Choose action
+            action, action_val = self.choose_action(prev_observation)
 
             # Take action
-            observation, reward, done, info = self.env.step(action)
+            new_observation, reward, done, info = self.env.step(action)
             if t % 50 == 0:
                 logger.debug(
                     "t=%s, last action=%s, obs=%s, rew=%s, done=%s",
                     t,
                     action,
-                    observation,
+                    new_observation,
                     reward,
                     done,
                 )
-
-            # Update the state that we acted on
             if type(self.env).__name__ == "PensionEnv":
                 logger.info(
                     "year %s funds %s reputation %s humans %s meanAge %s "
@@ -175,39 +155,10 @@ class Agent:
                     info["human"].id,
                 )
 
-            curr_cache_key = not prev_cache_key
-            curr_best_action, curr_best_value = self.q_function.select_action(
-                observation,
-                self.update_policy,
-                policy_params,
-                save=curr_cache_key,
-            )
-
-            logger.debug(
-                "update policy yields action: (%s, %s)",
-                curr_best_action,
-                curr_best_value,
-            )
-
-            # the original value of the action that we took to get here
-            qValOld = action_val
-            td_error = (reward + self.gamma * curr_best_value) - qValOld
-            qValNew = qValOld + alpha * td_error
-            logger.debug(
-                "%s <-- %s + %s * [(%s + %s * %s) - %s]",
-                qValNew,
-                qValOld,
-                alpha,
-                reward,
-                self.gamma,
-                curr_best_value,
-                qValOld,
-            )
-            self.q_function.update_value(
-                prev_observation, action, qValNew, load=prev_cache_key
-            )
-
-            prev_observation, prev_cache_key = observation, curr_cache_key
+            if not exploit:
+                # Update the state that we acted on
+                self.update(prev_observation, action, action_val, new_observation, reward)
+            prev_observation = new_observation
 
             # h = info['human']
             # if (h.id != lastHumanId):
@@ -227,3 +178,71 @@ class Agent:
         else:
             q_table = None
         return q_table, cumul_reward, t + 1, info
+
+    def prepare_episode(self, exploit=False):
+        # apply decay once before episode to make constant alpha/epsilon possible
+        # to use fixed alpha/epsilon, use (min_)alpha/epsilon together with *_decay=1
+        self.alpha = max(self.alpha * (1 - self.alpha_decay), self.min_alpha)
+        self.epsilon = max(
+            self.epsilon * (1 - self.epsilon_decay), self.min_epsilon
+        )
+        self.used_alpha = 0 if exploit else self.alpha
+        epsilon = 0 if exploit else self.epsilon
+        self.policy_params = {"epsilon": epsilon}
+        if not exploit:
+            logger.warning(f"Starting Episode with alpha={self.used_alpha} and "
+                           f"epsilon={epsilon}")
+
+    def choose_action(self, prev_observation):
+        # self.env.render()
+        logger.debug("Observation: %s", prev_observation)
+        # if exploit and hasattr(self.env, "render"):
+        #     self.env.render()
+        action, action_val = self.q_function.select_action(
+            prev_observation,
+            self.exploration_policy,
+            self.policy_params,
+            load=self.prev_cache_key,
+        )
+        logger.debug(
+            "chosen action %s (%s), value %s (%s)",
+            action,
+            type(action),
+            action_val,
+            type(action_val),
+        )
+        return action, action_val
+
+    def update(self, prev_observation, action, action_val, new_observation, reward):
+        # Update the state that we acted on
+        curr_cache_key = not self.prev_cache_key
+        curr_best_action, curr_best_value = self.q_function.select_action(
+            new_observation,
+            self.update_policy,
+            self.policy_params,
+            save=curr_cache_key,
+        )
+        logger.debug(
+            "update policy yields action: (%s, %s)",
+            curr_best_action,
+            curr_best_value,
+        )
+        # the original value of the action that we took to get here
+        qValOld = action_val
+        td_error = (reward + self.gamma * curr_best_value) - qValOld
+        qValNew = qValOld + self.used_alpha * td_error
+        logger.debug(
+            "%s <-- %s + %s * [(%s + %s * %s) - %s]",
+            qValNew,
+            qValOld,
+            self.used_alpha,
+            reward,
+            self.gamma,
+            curr_best_value,
+            qValOld,
+        )
+        self.q_function.update_value(
+            prev_observation, action, qValNew, load=self.prev_cache_key
+        )
+        self.prev_cache_key = curr_cache_key
+
