@@ -299,7 +299,7 @@ def run_marl_episode(agents, marl_env, cumul_rewards_n, num_steps_n, max_steps=m
 
 
 def plot(env_name, algo):
-    csv_pattern = f"./q_{env_name}_rewards*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
+    csv_pattern = f"./{env_name}_run_*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
 
     # Activate seaborn
     seaborn.set()
@@ -368,7 +368,8 @@ if __name__ == "__main__":
         plot(str(env_name), algo)
         exit(0)
     elif len(sys.argv) >= 2 and sys.argv[1].lower() == "tsetlin":
-        from agents.tsetlin_value_function import TsetlinQFunction as QFunction
+        # from agents.tsetlin_value_function import TsetlinQFunction as QFunction
+        from agents.pytsetlin_value_function import TsetlinQFunction as QFunction
         # from agents.tsetlin_value_function import TsetlinRegParams
         algo = "Q-Tsetlin"
         print("Running TSETLIN-REGRESSOR BASED Q-LEARNING")
