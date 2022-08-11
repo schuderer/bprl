@@ -2,7 +2,9 @@
 
 import datetime
 import glob
+import json
 import math
+import os
 import random
 import sys
 from dataclasses import dataclass
@@ -20,6 +22,11 @@ import dill as pickle
 from agents import q_agent
 from agents.utils import softmax
 import logging
+
+# if __name__ == "__main__":
+#     if len(sys.argv) == 1:
+#         from tsetlin_run_params import parameter_grid, env_name, algo, episodes, num_agents, num_runs
+
 
 logging.basicConfig(stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -298,20 +305,12 @@ def run_marl_episode(agents, marl_env, cumul_rewards_n, num_steps_n, max_steps=m
                 num_steps_n[i] = step
 
 
-def plot(env_name, algo):
-    csv_pattern = f"./{env_name}_run_*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
-
-    # Activate seaborn
-    seaborn.set()
-    plt.figure(f"Results {env_name}")
-    plt.title(env_name, fontsize=14)
-
-    plt.xlabel("Timesteps", fontsize=14)
-    plt.ylabel("Score", fontsize=14)
+def plot(env_name, algo, base_path=".", summary_only=False):
+    csv_pattern = f"{base_path}/{env_name}_run_*.csv"  # if len(sys.argv) == 2 else sys.argv[2]
 
     df = None
     for i, csv_file in enumerate(glob.glob(csv_pattern)):
-        logger.info(f"Reading {csv_file}")
+        logger.debug(f"Reading {csv_file}")
         length = None
         if df is None:
             df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
@@ -320,19 +319,31 @@ def plot(env_name, algo):
             tmp_df = pd.read_csv(csv_file).iloc[:, 1:]  # get rid of index
             df[f"reward_{i}"] = tmp_df["reward"][:length]
     if df is None:
-        logger.info("No data to plot")
+        print("No data to plot")
         exit(0)
 
-    logger.info(f"Used {i} csv files")
+    logger.debug(f"Used {i + 1} csv files")
     mean_ = df.iloc[:, 1:].mean(axis=1)
     std_ = df.iloc[:, 1:].std(axis=1)
-    std_error = std_ / np.sqrt(df.shape[0])
+    std_error = std_ / np.sqrt(df.shape[1]-1)
 
-    plt.plot(df["episode"], mean_, label=algo, linewidth=3)
-    plt.fill_between(df["episode"], mean_ + std_error, mean_ - std_error, alpha=0.5)
+    print(f"{base_path}: mean reward {mean_.mean()}, "
+          f"mean std_error {std_error.mean()}")
 
-    plt.legend()
-    plt.show()
+    if not summary_only:
+        # Activate seaborn
+        seaborn.set()
+        plt.figure(f"Results {env_name}")
+        plt.title(env_name, fontsize=14)
+
+        plt.xlabel("Timesteps", fontsize=14)
+        plt.ylabel("Score", fontsize=14)
+
+        plt.plot(df["episode"], mean_, label=algo, linewidth=3)
+        plt.fill_between(df["episode"], mean_ + std_error, mean_ - std_error, alpha=0.5)
+
+        plt.legend()
+        plt.show()
 
 
 @dataclass
@@ -342,44 +353,40 @@ class EnvProxy:
     marl_env: Any = None
 
 
-if __name__ == "__main__":
-    logger.setLevel(logging.INFO)
-    # penv.logger.setLevel(logging.WARNING)
-    logging.getLogger("gym_fin.envs.fin_base_sim").setLevel(logging.INFO)
-    logging.getLogger("gym_fin.envs.sim_env").setLevel(logging.INFO)
-    logging.getLogger("examples.pension").setLevel(logging.WARNING)
-
-    # env_name = "Pendulum-v1"  # "PensionExample-v0"
-    # env_name = "CartPole-v1"
-    # env_name = "MountainCar-v0"  # Did not converge with 10.000 clauses
-    # from pettingzoo.butterfly import pistonball_v6
-    # env_name = pistonball_v6.env
-    import ma_gym
-    env_name: Union[str, Callable] = "Combat-v0"
-    algo = "Q-Tsetlin no comm"
-    # algo = "Q-Tsetlin best agent com + cert sampling"
-    episodes = 5000  # LASTCHANGE: was 5000
-    num_agents = -1  # was 4; use -1 for native multi-agent environment (which determines its own num of agents)
-    num_runs = 10  # LASTCHANGE: was 10
-    num_bins = 4  # was 4 for Combat-v0: earlier: was 16  # 12 if algo == "Q-Disc" else 16
-    log_bins = False
-
-    if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
-        plot(str(env_name), algo)
-        exit(0)
-    elif len(sys.argv) >= 2 and sys.argv[1].lower() == "tsetlin":
-        # from agents.tsetlin_value_function import TsetlinQFunction as QFunction
-        from agents.pytsetlin_value_function import TsetlinQFunction as QFunction
-        # from agents.tsetlin_value_function import TsetlinRegParams
-        algo = "Q-Tsetlin"
-        print("Running TSETLIN-REGRESSOR BASED Q-LEARNING")
-    elif len(sys.argv) >= 2 and sys.argv[1].lower() == "q-disc":
-        from agents.value_function import QFunction
-        algo = "Q-Disc"
-        print("Running DISCRETIZED Q-LEARNING")
+def make_q_function(env, params):
+    tsetlin_params = {k[len("tsetlin_"):]: v for k, v in params.items() if k.lower().startswith("tsetlin_")}
+    if params["algo"].lower() == "tsetlin":
+        from agents.pytsetlin_value_function import TsetlinQFunction, TsetlinRegParams
+        print(f"Initializing TM with {tsetlin_params}")
+        param_obj = TsetlinRegParams(**tsetlin_params)
+        return TsetlinQFunction(
+            env,
+            discretize_bins=params["num_bins"],
+            discretize_log=params["log_bins"],
+            tsetlin_params=param_obj,
+        )
     else:
-        print("Please specify an algorithm: 'q-disc' or 'tsetlin'")
-        exit(1)
+        from agents.value_function import QFunction
+        return QFunction(
+            env,
+            discretize_bins=params["num_bins"],
+            discretize_log=params["log_bins"],
+        )
+
+
+def one_complete_run(complete_run_id, params):
+    env_name = params["env_name"]
+    algo = params["algo"]
+    algo_variant = params["algo_variant"]
+    episodes = params["episodes"]
+    num_agents = params["num_agents"]
+    num_runs = params["num_runs"]
+    parallel_processes = params["parallel_processes"]
+
+    min_epsilon = params["min_epsilon"]
+    epsilon_decay = params["epsilon_decay"]
+    num_bins = params["num_bins"]
+    log_bins = params["log_bins"]
 
     # Run Q-Learning
     # fmt: off
@@ -428,11 +435,7 @@ if __name__ == "__main__":
     # log_bins = False
 
     def make_q_agent(env):
-        q_func = QFunction(
-            env,
-            discretize_bins=num_bins,
-            discretize_log=log_bins
-        )
+        q_func = make_q_function(env, params)
         agent = q_agent.Agent(
             env,
             q_function=q_func,
@@ -440,14 +443,14 @@ if __name__ == "__main__":
             exploration_policy=q_agent.epsilon_greedy,
             gamma=0.99,
             min_alpha=1.0,  # TODO: was 0.1, changed to 1.0 for Tsetlin
-            min_epsilon=0.01,  # TODO: was 0.1, changed to 0.05 for Tsetlin
-            alpha_decay=0.004,  # default 1 = fixed alpha (instant decay to min_alpha)
-            epsilon_decay=0.0008  # was: 0.006 # default: 1 = fixed epsilon (instant decay to min_epsilon)
+            min_epsilon=min_epsilon,  # LASTCHANGE: 0.01 TODO: was 0.1, changed to 0.05 for Tsetlin
+            alpha_decay=1.0,  # default 1 = fixed alpha (instant decay to min_alpha)
+            epsilon_decay=epsilon_decay  # was: 0.0008 #   default: 1 = fixed epsilon (instant decay to min_epsilon)
         )
         return agent
 
     def worker(run_no):
-        logger.info(f'###### LEARNING RUN {run_no + 1} ######')
+        logger.info(f'###### LEARNING RUN {complete_run_id} {run_no} ######')
 
         # seed = 7
         #
@@ -496,9 +499,11 @@ if __name__ == "__main__":
                 agent = make_q_agent(env)
                 agents.append(agent)
 
-        q_table, rewards = learn(f"{str(env_name)}_run_{run_no}", agents, episodes=episodes, max_steps=365*300)
+        filepath = complete_run_id
+        filename = f"{str(env_name)}_run_{run_no}"
+        q_table, rewards = learn(os.path.join(filepath, filename), agents, episodes=episodes, max_steps=365*300)
 
-        logger.info(f'###### FINISHED RUN {run_no + 1} ######')
+        logger.info(f'###### FINISHED RUN {complete_run_id} {run_no} ######')
 
         # logger.info(q_table)
 
@@ -510,14 +515,18 @@ if __name__ == "__main__":
         #     reward = agent.run_episode(exploit=True)[1]
         #     logger.info("reward: %s", reward)
 
+    params_file = os.path.join(complete_run_id, f"params.json")
+    with open(params_file, "w") as f:
+        json.dump(params, f, indent=True)
+
     from multiprocess import Pool
     range_start = 0
-    with Pool(processes=6) as pool:  # LASTCHANGE: was 7
+    with Pool(processes=parallel_processes) as pool:
         results = pool.map(worker, range(range_start, range_start + num_runs))
         print(f"Results: \n{results}")
 
-    if len(sys.argv) >= 3 and sys.argv[2].lower() == "plot":
-        plot(str(env_name), algo)
+    # if len(sys.argv) >= 3 and sys.argv[2].lower() == "plot":
+    #     plot(str(env_name), algo)
 
     # logger.info('###### LEARNING: ######')
     #
@@ -624,3 +633,68 @@ if __name__ == "__main__":
     #  'company:', companies[0].funds, companies[0].reputation)
     # (year, 'human:', i, h.age, fundsBefore, h.funds, h.happiness, 'reward:', r,
     #  'company:', companies[0].funds, companies[0].reputation)
+
+
+if __name__ == "__main__":
+    logger.setLevel(logging.INFO)
+    # penv.logger.setLevel(logging.WARNING)
+    logging.getLogger("gym_fin.envs.fin_base_sim").setLevel(logging.INFO)
+    logging.getLogger("gym_fin.envs.sim_env").setLevel(logging.INFO)
+    logging.getLogger("examples.pension").setLevel(logging.WARNING)
+
+    import tsetlin_run_params as params
+    import pyDOE2
+    param_levels = [len(v) for v in params.parameter_grid.values()]
+    factorials = pyDOE2.fullfact(param_levels)
+    # experiment_fraction = 2  # Reduce number of experiments to one over this fraction with respect to full factorial
+    # factorials = pyDOE2.gsd(param_levels, experiment_fraction)
+
+    # algo = "Q-Tsetlin no comm"
+    # # algo = "Q-Tsetlin best agent com + cert sampling"
+    # episodes = 4000  # LASTCHANGE: was 5000
+    # num_agents = 1  # was 4; use -1 for native multi-agent environment (which determines its own num of agents)
+    # num_runs = 10  # LASTCHANGE: was 10
+    # num_bins = 16  # was 4 for Combat-v0: earlier: was 16  # 12 if algo == "Q-Disc" else 16
+    # log_bins = False
+    #
+
+    # def get_param(param_indices, key):
+    #     return parameter_grid[key][param_indices[parameter_grid.keys().index(key)]]
+
+    # TODO adapt plotting to hyperparam search
+    if len(sys.argv) >= 2 and sys.argv[1].lower() == "plot":
+        algo = f'{params.algo.title()} {params.algo_variant.title()}'
+        if len(sys.argv) >= 3:
+            base_path = sys.argv[2]
+            plot(str(params.env_name), algo, base_path=base_path)
+        else:
+            base_path = None
+            for base_path in glob.glob(f"param_trial_*"):
+                plot(str(params.env_name), algo, base_path=base_path, summary_only=True)
+            if base_path is None:
+                print("No 'param_trial_*' directories found")
+        exit(0)
+
+    logger.info(f"Will try out {factorials.shape[0]} parameter combinations. Param levels: {param_levels}")
+
+    for param_trial_no, param_indices in enumerate(factorials):
+        param_dict = {
+            "env_name": params.env_name,
+            "algo": params.algo,
+            "algo_variant": params.algo_variant,
+            "episodes": params.episodes,
+            "num_agents": params.num_agents,
+            "num_runs": params.num_runs,
+            "parallel_processes": params.parallel_processes,
+        }
+        for p_idx, v_idx in enumerate(param_indices.astype(int)):
+            print(v_idx)
+            key = list(params.parameter_grid.keys())[p_idx]
+            value = params.parameter_grid[key][v_idx]
+            param_dict[key] = value
+
+        dirname = f"param_trial_{param_trial_no}"
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        one_complete_run(dirname, param_dict)
+

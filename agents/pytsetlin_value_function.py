@@ -4,26 +4,41 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
+# sys.path.append("../pyTsetlinMachine")  # noqa
+
 import numpy as np
-from pyTsetlinMachine.tm import RegressionTsetlinMachine
-from pyTsetlinMachine.tools import Binarizer
+from tmu.tsetlin_machine import TMRegressor
+# from pyTsetlinMachine.tm import RegressionTsetlinMachine
+# from pyTsetlinMachine.tools import Binarizer
 
 from agents.discretizer import create_discretizers
 
 logger = logging.getLogger(__name__)
 
-sys.path.append("../pyTsetlinMachine")  # noqa
+
+#### TODO REMOVE THIS
+from sklearn import datasets
+california_housing = datasets.fetch_california_housing()
+X = california_housing.data
+Y = california_housing.target
+from pyTsetlinMachine.tools import Binarizer
+b = Binarizer(max_bits_per_feature=10)
+b.fit(X)
+X_transformed = b.transform(X)
+
+
+
 
 
 # hyper parameters
 @dataclass
 class TsetlinRegParams:
-    T: int = 10000  # 4000  # TODO try fractions of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
+    number_of_clauses: int = 10000  # 4000  # Was 10000 but needs to be smaller than T in pyTsetlinMachine or it won't work # TODO: try reducing to multiples of T
+    T: int = 20000000  # 4000  # TODO try fractions of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
     s: int = 2.5  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.
-    number_of_clauses: int = 10000  # 4000  # TODO: try reducing to multiples of T
-    states: int = 25  # 25  # 100
-    max_target: int = 0  # 4000 (0 for Combat-V0, 300 for cartpole)
-    min_target: int = -15  # (-15 for Combat-V0, 0 for cartpole)
+    states: int = 8  # 25  # 100
+    max_target: int = 300  # 4000 (0 for Combat-V0, 300 for cartpole)
+    min_target: int = 0  # (-15 for Combat-V0, 0 for cartpole)
 
 
 class TsetlinQFunction:
@@ -74,16 +89,31 @@ class TsetlinQFunction:
         self.num_features = self.num_state_features + self.num_actions
 
         self.tparams = tsetlin_params or TsetlinRegParams()
-        # RegressionTsetlinMachine(number_of_clauses, T, s, boost_true_positive_feedback=1, number_of_state_bits=8, weighted_clauses=False, s_range=False)
-        self.tsetlin_machine = RegressionTsetlinMachine(
+        self.tsetlin_machine = TMRegressor(
             self.tparams.number_of_clauses,
             self.tparams.T,
             self.tparams.s,
-            number_of_state_bits=self.tparams.states,
+            weighted_clauses=True,
+        )
+        X_pseudotable = np.zeros((1, self.num_features))
+        self.tsetlin_machine.initialize(
+            X_pseudotable,
             max_y=self.tparams.max_target,  # optional
             min_y=self.tparams.min_target,  # optional
-            number_of_features=self.num_features  # optional
         )
+        # self.tsetlin_machine = TMRegressor(10000, 200000, 2.5, platform='CPU', weighted_clauses=True)
+        # init_pseudotable = np.zeros((1, X_transformed.shape[1]))
+        # self.tsetlin_machine.initialize(init_pseudotable, min_y=0, max_y=300)
+
+        # print(f"self.num_features={self.num_features}")
+        # self.tsetlin_machine = RegressionTsetlinMachine(
+        #     1000,
+        #     500 * 10,
+        #     2.75,
+        #     weighted_clauses=True,
+        #     min_y=0.,
+        #     max_y=5.,
+        #     number_of_features=self.num_features)
 
     def select_action(
             self, observation, policy, policy_params, save=None, load=None
@@ -94,6 +124,7 @@ class TsetlinQFunction:
         are meant to speed up hash lookup for tabular learning).
         """
         discrete_state = self.state_disc.discretize(observation)
+        # print(f"obs {observation} is discretized to {discrete_state}")
         action_values = self._get_action_values(discrete_state)
         # print(f"action_values: {action_values}")
         action_index, action_value = policy(action_values, policy_params)
@@ -107,12 +138,31 @@ class TsetlinQFunction:
         Parameters `save` and `load` are ignored here (they
         are meant to speed up hash lookup for tabular learning).
         """
+        # print(f"observation: {observation}\naction: {action}")
         discrete_state = self.state_disc.discretize(observation)
         discrete_action = self.action_disc.discretize(action)
         features = self._tsetlinFeaturesFor(discrete_state, discrete_action)
         # print(f"update: discrete_action {discrete_action} -> value {value}")
         # print(features)
-        self.tsetlin_machine.fit(np.array([features]), value, epochs=1, incremental=True)
+        # value = np.array([300])    # todo remove!
+        # features = np.zeros(features.shape)    # todo remove!
+
+        # print(f"fitting on value = {value}")
+        # print(f"features = {np.array([features])}, shape={np.array([features]).shape}")
+        self.tsetlin_machine.fit(np.array([features]), value)
+
+        # # TODO REMOVE THIS TEST
+        # feat = np.array([X_transformed[0]])
+        # testval = np.array([Y[0]])
+        # testval = np.array(300)
+        # print(f"fitting on value = {testval}")
+        # print(f"features = {feat}, shape={feat.shape}")
+        # for i in range(300):  # range(X_transformed.shape[0]):
+        #     # for j in range(1):
+        #     self.tsetlin_machine.fit(feat, testval)
+        # pred = self.tsetlin_machine.predict(feat)
+        # print(f"predicted value = {pred}, should be {testval}")
+        # 1/0
 
     @staticmethod
     def _stateKeyFor(discreteObs):
@@ -144,8 +194,14 @@ class TsetlinQFunction:
         action_values = []
         for discrete_action in range(self.num_actions):
             features = self._tsetlinFeaturesFor(discrete_state, [discrete_action])
+            # features = np.zeros(features.shape)  # todo remove!
+            # print(f"features = {features}")
             action_value = self.tsetlin_machine.predict(np.array([features]))
+            # print(f"action_value = {action_value}")
+            # if action_value != [0]:
+            #     raise ValueError("Hey it's something else than 0")
             action_values.append(action_value)
+        # print(action_values)
         return action_values
 
     @property
@@ -157,7 +213,9 @@ class TsetlinQFunction:
         return self.tsetlin_machine.number_of_clauses * 2
 
     def get_raw_clauses(self):
-        return self.tsetlin_machine.get_state()
+        # TODO: adapt
+        # return self.tsetlin_machine.get_state()
+        return None
 
     def get_clauses(self):
         for i in range(self.number_of_clauses):

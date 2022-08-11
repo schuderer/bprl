@@ -52,6 +52,8 @@ class Agent:
         exploration_policy=epsilon_greedy,
         gamma=0.99,
         min_alpha=0.01,
+        max_alpha=1.0,
+        max_epsilon=1.0,
         min_epsilon=0.1,
         alpha_decay=1,  # default 1 = fixed alpha (min_alpha)
         epsilon_decay=1,  # default: 1 = fixed epsilon (min_epsilon)
@@ -87,8 +89,8 @@ class Agent:
         self.min_epsilon = min_epsilon
         self.alpha_decay = alpha_decay
         self.epsilon_decay = epsilon_decay
-        self.alpha = 1
-        self.epsilon = 1
+        self.alpha = max_alpha
+        self.epsilon = max_epsilon
 
         # Keep track of state during episode
         self.policy_params = None
