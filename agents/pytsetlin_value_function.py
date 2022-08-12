@@ -16,20 +16,6 @@ from agents.discretizer import create_discretizers
 logger = logging.getLogger(__name__)
 
 
-#### TODO REMOVE THIS
-from sklearn import datasets
-california_housing = datasets.fetch_california_housing()
-X = california_housing.data
-Y = california_housing.target
-from pyTsetlinMachine.tools import Binarizer
-b = Binarizer(max_bits_per_feature=10)
-b.fit(X)
-X_transformed = b.transform(X)
-
-
-
-
-
 # hyper parameters
 @dataclass
 class TsetlinRegParams:
