@@ -1,0 +1,18 @@
+    episodes = 4000  # LASTCHANGE: was 5000
+    num_agents = 1  # was 4; use -1 for native multi-agent environment (which determines its own num of agents)
+    num_runs = 10  # LASTCHANGE: was 10
+    num_bins = 16  # was 4 for Combat-v0: earlier: was 16  # 12 if algo == "Q-Disc" else 16
+    log_bins = False
+
+            gamma=0.99,
+            min_alpha=1.0,  # TODO: was 0.1, changed to 1.0 for Tsetlin
+            min_epsilon=0.01,  # TODO: was 0.1, changed to 0.05 for Tsetlin
+            alpha_decay=0.004,  # default 1 = fixed alpha (instant decay to min_alpha)
+            epsilon_decay=0.0008  # was: 0.0008 #   default: 1 = fixed epsilon (instant decay to min_epsilon)
+
+    number_of_clauses: int = 10000  # 4000  # Was 10000 but needs to be smaller than T in pyTsetlinMachine or it won't work # TODO: try reducing to multiples of T
+    T: int = 20000000  # 4000  # TODO try fractions of num clauses; As a strategy for problems where the number of clauses is unknown, and for real-world applications where noise plays a significant role, the RTM can be initialized with a much larger T. Then, since the output, yo, is a fraction of the threshold, T, the error decreases.
+    s: int = 2.5  # 2  # For instance, if someone [increases s to 4], clauses will start to learn much finer patterns, such as (1 0 .), (1 1 .), and (0 1 .). This significantly increases the number of clauses needed to capture the sub-patterns.
+    states: int = 8  # 25  # 100
+    max_target: int = 300  # 4000 (0 for Combat-V0, 300 for cartpole)
+    min_target: int = 0  # (-15 for Combat-V0, 0 for cartpole)

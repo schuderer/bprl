@@ -1,0 +1,19 @@
+{
+ "env_name": "CartPole-v1",
+ "algo": "tsetlin",
+ "algo_variant": "no comm",
+ "episodes": 4000,
+ "num_agents": 1,
+ "num_runs": 20,
+ "parallel_processes": 18,
+ "tsetlin_number_of_clauses": 10000,
+ "tsetlin_T": 20000000,
+ "tsetlin_s": 2.5,
+ "tsetlin_states": 4,
+ "tsetlin_max_target": 300,
+ "tsetlin_min_target": 0,
+ "min_epsilon": 0.01,
+ "epsilon_decay": 0.0008,
+ "num_bins": 8,
+ "log_bins": false
+}
