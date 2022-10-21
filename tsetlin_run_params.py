@@ -25,7 +25,7 @@ parameter_grid = {
     "tsetlin_number_of_clauses": [6000, 10000, 14000],  # was 10000
     "tsetlin_T": [100000, 5000000, 20000000, 40000000],  # was 20000000
     "tsetlin_s": [2.5],
-    "tsetlin_states": [4, 8, 25, 100],  # was 8
+    "tsetlin_state_bits": [4, 8, 25, 100],  # was 8
     "tsetlin_max_target": [300],
     "tsetlin_min_target": [0],
     "min_epsilon": [0.01, 0.004, 0.001],  # was 0.004
@@ -39,7 +39,7 @@ parameter_grid = {
 #     "tsetlin_number_of_clauses": [10000],  # was 10000
 #     "tsetlin_T": [20000000],  # was 20000000
 #     "tsetlin_s": [2.5],
-#     "tsetlin_states": [8],  # was 8
+#     "tsetlin_state_bits": [8],  # was 8
 #     "tsetlin_max_target": [300],
 #     "tsetlin_min_target": [0],
 #     "min_epsilon": [0.004],  # was 0.004
